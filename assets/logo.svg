@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg preserveAspectRatio="xMidYMid" version="1.1" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+ <g>
+  <path d="m16 7.0373-12.482 6.1623v12.534l12.482 6.2668 12.482-6.2668v-12.534z" fill="#ebd395"/>
+  <path d="m16 5.0456-12.482 6.1623v12.534l12.482 6.2668 12.482-6.2668v-12.534z" fill="#dcc175"/>
+  <path d="m16 0-12.482 6.1623v12.534l12.482 6.2668 12.482-6.2668v-12.534z" fill="#733231" opacity=".55284"/>
+  <path d="m16 11.974-12.482-5.8659v12.57l12.482 6.2849 12.482-6.2849v-12.57z" fill="#953834" opacity=".55284"/>
+ </g>
+</svg>

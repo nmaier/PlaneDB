@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="256"
+   height="256"
+   viewBox="0 0 256 256"
+   version="1.1"
+   preserveAspectRatio="xMidYMid"
+   id="svg12"
+   sodipodi:docname="logo.svg"
+   inkscape:version="0.92.3 (2405546, 2018-03-11)">
+  <metadata
+     id="metadata18">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+        <cc:license
+           rdf:resource="http://creativecommons.org/publicdomain/zero/1.0/" />
+      </cc:Work>
+      <cc:License
+         rdf:about="http://creativecommons.org/publicdomain/zero/1.0/">
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Reproduction" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#Distribution" />
+        <cc:permits
+           rdf:resource="http://creativecommons.org/ns#DerivativeWorks" />
+      </cc:License>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs16" />
+  <sodipodi:namedview
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1"
+     objecttolerance="10"
+     gridtolerance="10"
+     guidetolerance="10"
+     inkscape:pageopacity="0"
+     inkscape:pageshadow="2"
+     inkscape:window-width="1920"
+     inkscape:window-height="965"
+     id="namedview14"
+     showgrid="false"
+     inkscape:zoom="0.71732523"
+     inkscape:cx="128"
+     inkscape:cy="164.5"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg12" />
+  <path
+     style="fill:#ebd395;fill-opacity:1;stroke-width:0.99999994"
+     inkscape:connector-curvature="0"
+     id="path2"
+     d="M 128,55.468966 28.149375,104.7676 V 205.03601 L 128,255.17021 227.85062,205.03601 V 104.7676 Z" />
+  <path
+     style="fill:#dcc175;fill-opacity:1;stroke-width:0.99999994"
+     inkscape:connector-curvature="0"
+     id="path4"
+     d="M 128,39.535356 28.149375,88.833987 V 189.1024 L 128,239.2366 227.85062,189.1024 V 88.833987 Z" />
+  <path
+     style="opacity:0.55284089;fill:#733231;fill-opacity:1;stroke-width:0.99999994"
+     inkscape:connector-curvature="0"
+     id="path6"
+     d="M 128,-0.82978927 28.149375,48.468845 V 148.73725 L 128,198.87146 227.85062,148.73725 V 48.468845 Z" />
+  <path
+     style="opacity:0.55284089;fill:#953834;fill-opacity:1;stroke-width:0.99999994"
+     inkscape:connector-curvature="0"
+     id="path8"
+     d="M 128,94.960712 28.149375,48.033282 V 148.59207 L 128,198.87146 227.85062,148.59207 V 48.033282 Z" />
+</svg>

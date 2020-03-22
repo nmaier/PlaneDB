@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>NMaier.PlaneDB</AssemblyName>
+    <RootNamespace>NMaier.PlaneDB</RootNamespace>
+    <TargetFrameworks>netstandard2.1;net48</TargetFrameworks>
+
+    <LangVersion>8</LangVersion>
+    <Deterministic>True</Deterministic>
+    <Nullable>enable</Nullable>
+    
+    <PackageId>NMaier.PlaneDB</PackageId>
+    <Authors>Nils Maier</Authors>
+    <Company />
+    <Product>NMaier.PlaneDB</Product>
+    <Version>0.10.0</Version>
+    <Description>A Pure .NET Key-Value Database.
+Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <IncludeSymbols>true</IncludeSymbols>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JetBrains.Annotations" Version="2020.1.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="NMaier.BlockStream" Version="1.6.0" />
+    <PackageReference Include="NMaier.Serializers" Version="1.2.0" />
+  </ItemGroup>
+
+</Project>
