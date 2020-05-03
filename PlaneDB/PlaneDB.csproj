@@ -13,11 +13,12 @@
     <Authors>Nils Maier</Authors>
     <Company />
     <Product>NMaier.PlaneDB</Product>
-    <Version>0.10.0</Version>
-    <Description>A Pure .NET Key-Value Database.
+    <Version>0.10.1</Version>
+    <Description>Pure .NET Key-Value and Set databases.
 Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageTags>db, database, key-value, kv-store, embedded, database, embedded database</PackageTags>
 
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
