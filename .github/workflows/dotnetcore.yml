@@ -18,10 +18,16 @@ jobs:
       with:
         dotnet-version: 3.1.101
     - name: Install dependencies
-      run: dotnet restore
+      run: |
+        dotnet restore --configuration Release
+        dotnet restore --configuration Debug
     - name: Build
       run: |
         dotnet build --configuration Release --no-restore --framework netstandard2.1 PlaneDB
         dotnet build --configuration Release --no-restore --framework netcoreapp3.1 PlaneDB.Tests
+        dotnet build --configuration Debug --no-restore --framework netstandard2.1 PlaneDB
+        dotnet build --configuration Debug --no-restore --framework netcoreapp3.1 PlaneDB.Tests
     - name: Test
-      run: dotnet test --no-restore --verbosity normal --framework netcoreapp3.1
+      run: |
+        dotnet test --configuration Release --no-restore --verbosity normal --framework netcoreapp3.1
+        dotnet test --configuration Debug --no-restore --verbosity normal --framework netcoreapp3.1
