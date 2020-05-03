@@ -1,4 +1,4 @@
-# ![Icon](icon.png) PlaneDB
+# ![Icon](https://github.com/nmaier/PlaneDB/raw/master/icon.png) PlaneDB
 
 Kinda like LevelDB, but in C#
 
