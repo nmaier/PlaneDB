@@ -5,7 +5,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+#if TEST_ROCKS
 using RocksDbSharp;
+#endif
 
 namespace NMaier.PlaneDB.Tests
 {
@@ -15,7 +17,9 @@ namespace NMaier.PlaneDB.Tests
     private const int COUNT = 10_000;
 
     private static readonly PlaneDBOptions planeDBOptions = new PlaneDBOptions().EnableCompression();
+#if TEST_ROCKS
     private DbOptions rocksOptions;
+#endif
 
     [TestInitialize]
     public void Initialize()
@@ -25,8 +29,10 @@ namespace NMaier.PlaneDB.Tests
         di.Delete(true);
       }
 
+#if TEST_ROCKS
       rocksOptions = new DbOptions().SetCreateIfMissing();
       rocksOptions.OptimizeForPointLookup(8);
+#endif
     }
 
 
@@ -133,6 +139,7 @@ namespace NMaier.PlaneDB.Tests
       }
     }
 
+#if TEST_ROCKS
     [TestMethod]
     public void TestLargeishRocks()
     {
@@ -154,6 +161,7 @@ namespace NMaier.PlaneDB.Tests
         }
       }
     }
+#endif
 
     [TestMethod]
     public void TestRemoveOrphans()
@@ -302,6 +310,7 @@ namespace NMaier.PlaneDB.Tests
       }
     }
 
+#if TEST_ROCKS
     [TestMethod]
     public void TestSetRocks()
     {
@@ -368,6 +377,7 @@ namespace NMaier.PlaneDB.Tests
         }
       }
     }
+#endif
 
     [TestMethod]
     public void TestSetThreadUnsafe()
