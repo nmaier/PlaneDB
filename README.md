@@ -31,7 +31,7 @@ using (var db = new StringPlaneDB(location, FileMode.CreateNew, options) {
   db.TryAdd("abc", "mno"); // Ignored
 }
 
-using (var db = new StringPlaneDB(location, FileMode.CreateNew, options) {
+using (var db = new StringPlaneDB(location, FileMode.OpenOrCreate, options) {
   Console.WriteLine($"abc={db["abc"]}"); // abc=jkl
 }
 ```
