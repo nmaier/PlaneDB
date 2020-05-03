@@ -2,6 +2,8 @@
 
 Kinda like LevelDB, but in C#
 
+![.NET Core](https://github.com/nmaier/PlaneDB/workflows/.NET%20Core/badge.svg)
+
 ## What?
 PlaneDB is a key-value store or database written in pure C#. It uses a log structured merge tree approach, with a memory database with journal for recently changed keys, sorted string tables (sstable) in multiple levels for on disk storage, and a block based approach, allowing features such as on-disk data compression or encryption.
 
