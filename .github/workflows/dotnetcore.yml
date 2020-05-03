@@ -17,16 +17,12 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.1.101
-    - name: Install dependencies
-      run: |
-        dotnet restore --configuration Release
-        dotnet restore --configuration Debug
     - name: Build
       run: |
-        dotnet build --configuration Release --no-restore --framework netstandard2.1 PlaneDB
-        dotnet build --configuration Release --no-restore --framework netcoreapp3.1 PlaneDB.Tests
-        dotnet build --configuration Debug --no-restore --framework netstandard2.1 PlaneDB
-        dotnet build --configuration Debug --no-restore --framework netcoreapp3.1 PlaneDB.Tests
+        dotnet build --configuration Release --framework netstandard2.1 PlaneDB
+        dotnet build --configuration Release --framework netcoreapp3.1 PlaneDB.Tests
+        dotnet build --configuration Debug --framework netstandard2.1 PlaneDB
+        dotnet build --configuration Debug --framework netcoreapp3.1 PlaneDB.Tests
     - name: Test
       run: |
         dotnet test --configuration Release --no-restore --verbosity normal --framework netcoreapp3.1
