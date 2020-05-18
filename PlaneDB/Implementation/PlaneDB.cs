@@ -254,6 +254,10 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public void Compact()
     {
+      if (CurrentTableCount <= 1) {
+        return;
+      }
+
       rwlock.EnterWriteLock();
       try {
         allowMerge = false;
