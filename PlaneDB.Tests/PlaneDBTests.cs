@@ -58,6 +58,7 @@ namespace NMaier.PlaneDB.Tests
 
       using (var db = new PlaneDB(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         db.Compact();
+        // XXX Verify table count and sequence are correct
       }
 
       var read = 0;

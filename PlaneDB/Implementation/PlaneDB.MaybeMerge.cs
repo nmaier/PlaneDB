@@ -66,7 +66,7 @@ namespace NMaier.PlaneDB
         flushThread.Join();
       }
 
-      for (byte level = 0x0; level < manifest.HighestLevel; ++level) {
+      for (byte level = 0x0; level <= Math.Max((byte)0x1, manifest.HighestLevel); ++level) {
         if (level == 0x1) {
           manifest.CommitLevel(level, newIds.ToArray());
         }
