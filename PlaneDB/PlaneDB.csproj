@@ -34,7 +34,7 @@ Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
     <PackageReference Include="JetBrains.Annotations" Version="2020.1.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="NMaier.BlockStream" Version="1.6.0" />
+    <PackageReference Include="NMaier.BlockStream" Version="1.7.2" />
     <PackageReference Include="NMaier.Serializers" Version="1.2.0" />
   </ItemGroup>
 

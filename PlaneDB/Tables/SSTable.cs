@@ -19,7 +19,7 @@ namespace NMaier.PlaneDB
     private readonly byte[] firstKey;
     private readonly KeyValuePair<byte[], long>[] indexes;
     private readonly byte[] lastKey;
-    private readonly Stream reader;
+    private readonly BlockReadOnlyStream reader;
     private readonly Stream stream;
     private long refs = 1;
 
@@ -27,7 +27,7 @@ namespace NMaier.PlaneDB
     {
       this.stream = stream;
       comparer = options.Comparer;
-      reader = new BlockReadOnlyStream(stream, options.BlockTransformer, cache: cache);
+      reader = OpenReaderStream(cache, options);
 
       reader.Seek(-sizeof(long), SeekOrigin.End);
       var headerLen = reader.ReadInt64();
@@ -97,101 +97,82 @@ namespace NMaier.PlaneDB
 
     public IEnumerable<KeyValuePair<byte[], byte[]?>> Enumerate()
     {
-      var taken = false;
-      Monitor.Enter(reader, ref taken);
-      try {
-        foreach (var kv in indexes) {
-          reader.Seek(kv.Value, SeekOrigin.Begin);
-          var items = reader.ReadInt32();
-          var off = reader.ReadInt64();
-          var blengths = new byte[items * sizeof(int) * 2];
-          reader.ReadFullBlock(blengths);
-          var loff = 0;
-          for (; items > 0; --items) {
-            var lengths = blengths.AsSpan(loff);
-            var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-            var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths.Slice(sizeof(int)));
-            loff += sizeof(int) * 2;
-            var key = reader.ReadFullBlock(klen);
-            switch (vlen) {
-              case Constants.TOMBSTONE:
-                yield return new KeyValuePair<byte[], byte[]?>(key, null);
-                break;
-              case 0:
-                yield return new KeyValuePair<byte[], byte[]?>(key, Array.Empty<byte>());
-                break;
-              default:
-                if (vlen <= -16) {
-                  var vlen2 = -(vlen >> 4);
-                  var value = reader.ReadFullBlock(vlen2);
-                  yield return new KeyValuePair<byte[], byte[]?>(key, value);
-                }
-                else {
-                  var old = reader.Position;
-                  reader.Seek(off, SeekOrigin.Begin);
-                  var value = new byte[vlen];
-                  reader.ReadFullBlock(value);
-                  reader.Seek(old, SeekOrigin.Begin);
-                  off += vlen;
-                  yield return new KeyValuePair<byte[], byte[]?>(key, value);
-                }
+      using var cursor = reader.CreateCursor();
+      foreach (var kv in indexes) {
+        cursor.Seek(kv.Value, SeekOrigin.Begin);
+        var items = cursor.ReadInt32();
+        var off = cursor.ReadInt64();
+        var blengths = new byte[items * sizeof(int) * 2];
+        cursor.ReadFullBlock(blengths);
+        var loff = 0;
+        for (; items > 0; --items) {
+          var lengths = blengths.AsSpan(loff);
+          var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+          var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths.Slice(sizeof(int)));
+          loff += sizeof(int) * 2;
+          var key = cursor.ReadFullBlock(klen);
+          switch (vlen) {
+            case Constants.TOMBSTONE:
+              yield return new KeyValuePair<byte[], byte[]?>(key, null);
+              break;
+            case 0:
+              yield return new KeyValuePair<byte[], byte[]?>(key, Array.Empty<byte>());
+              break;
+            default:
+              if (vlen <= -16) {
+                var vlen2 = -(vlen >> 4);
+                var value = cursor.ReadFullBlock(vlen2);
+                yield return new KeyValuePair<byte[], byte[]?>(key, value);
+              }
+              else {
+                var old = cursor.Position;
+                cursor.Seek(off, SeekOrigin.Begin);
+                var value = new byte[vlen];
+                cursor.ReadFullBlock(value);
+                cursor.Seek(old, SeekOrigin.Begin);
+                off += vlen;
+                yield return new KeyValuePair<byte[], byte[]?>(key, value);
+              }
 
-                break;
-            }
+              break;
           }
-        }
-      }
-      finally {
-        if (taken) {
-          Monitor.Exit(reader);
         }
       }
     }
 
     public IEnumerable<KeyValuePair<byte[], byte[]?>> EnumerateKeys()
     {
-      var taken = false;
-      Monitor.Enter(reader, ref taken);
-      try {
-        foreach (var kv in indexes) {
-          reader.Seek(kv.Value, SeekOrigin.Begin);
-          var items = reader.ReadInt32();
-          reader.ReadInt64();
-          var blengths = new byte[items * sizeof(int) * 2];
-          reader.ReadFullBlock(blengths);
-          var loff = 0;
-          for (; items > 0; --items) {
-            var lengths = blengths.AsSpan(loff);
-            var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-            var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths.Slice(sizeof(int)));
-            loff += sizeof(int) * 2;
-            var key = reader.ReadFullBlock(klen);
-            switch (vlen) {
-              case Constants.TOMBSTONE:
-                yield return new KeyValuePair<byte[], byte[]?>(key, null);
-                break;
-              case 0:
-                yield return new KeyValuePair<byte[], byte[]?>(key, Array.Empty<byte>());
-                break;
-              default:
-                if (vlen <= -16) {
-                  var vlen2 = -(vlen >> 4);
-                  reader.Seek(vlen2, SeekOrigin.Current);
-                }
+      using var cursor = reader.CreateCursor();
+      foreach (var kv in indexes) {
+        cursor.Seek(kv.Value, SeekOrigin.Begin);
+        var items = cursor.ReadInt32();
+        cursor.ReadInt64();
+        var blengths = new byte[items * sizeof(int) * 2];
+        cursor.ReadFullBlock(blengths);
+        var loff = 0;
+        for (; items > 0; --items) {
+          var lengths = blengths.AsSpan(loff);
+          var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+          var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths.Slice(sizeof(int)));
+          loff += sizeof(int) * 2;
+          var key = cursor.ReadFullBlock(klen);
+          switch (vlen) {
+            case Constants.TOMBSTONE:
+              yield return new KeyValuePair<byte[], byte[]?>(key, null);
+              break;
+            case 0:
+              yield return new KeyValuePair<byte[], byte[]?>(key, Array.Empty<byte>());
+              break;
+            default:
+              if (vlen <= -16) {
+                var vlen2 = -(vlen >> 4);
+                cursor.Seek(vlen2, SeekOrigin.Current);
+              }
 
-                yield return new KeyValuePair<byte[], byte[]?>(key, Array.Empty<byte>());
+              yield return new KeyValuePair<byte[], byte[]?>(key, Array.Empty<byte>());
 
-                break;
-            }
-
-            if (vlen > 0) {
-            }
+              break;
           }
-        }
-      }
-      finally {
-        if (taken) {
-          Monitor.Exit(reader);
         }
       }
     }
@@ -219,101 +200,90 @@ namespace NMaier.PlaneDB
 
     private bool IndexBlockContainsKey(long offset, byte[] keyBytes, out bool removed)
     {
-      var taken = false;
-      Monitor.Enter(reader, ref taken);
-      try {
-        reader.Seek(offset, SeekOrigin.Begin);
-        var items = reader.ReadInt32();
-        reader.ReadInt64();
-        var lengths = reader.ReadFullBlock(items * sizeof(int) * 2).AsSpan();
-        for (; items > 0; --items) {
-          var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-          lengths = lengths.Slice(sizeof(int));
-          var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-          lengths = lengths.Slice(sizeof(int));
-          var key = reader.ReadFullBlock(klen);
-          if (comparer.Equals(keyBytes, key)) {
-            removed = vlen == Constants.TOMBSTONE;
-            return true;
-          }
-
-          if (vlen > -16) {
-            continue;
-          }
-
-          vlen = -(vlen >> 4);
-          reader.Seek(vlen, SeekOrigin.Current);
+      using var cursor = reader.CreateCursor();
+      cursor.Seek(offset, SeekOrigin.Begin);
+      var items = cursor.ReadInt32();
+      cursor.ReadInt64();
+      var lengths = cursor.ReadFullBlock(items * sizeof(int) * 2).AsSpan();
+      for (; items > 0; --items) {
+        var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+        lengths = lengths.Slice(sizeof(int));
+        var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+        lengths = lengths.Slice(sizeof(int));
+        var key = cursor.ReadFullBlock(klen);
+        if (comparer.Equals(keyBytes, key)) {
+          removed = vlen == Constants.TOMBSTONE;
+          return true;
         }
 
-        // not found
-        removed = false;
-        return false;
-      }
-      finally {
-        if (taken) {
-          Monitor.Exit(reader);
+        if (vlen > -16) {
+          continue;
         }
+
+        vlen = -(vlen >> 4);
+        cursor.Seek(vlen, SeekOrigin.Current);
       }
+
+      // not found
+      removed = false;
+      return false;
+    }
+
+    private BlockReadOnlyStream OpenReaderStream(IBlockCache? cache, PlaneDBOptions options)
+    {
+      return new BlockReadOnlyStream(stream, options.BlockTransformer, cache: cache);
     }
 
     private bool TryGetFromIndexBlock(long offset, byte[] keyBytes, out byte[]? value)
     {
-      var taken = false;
-      Monitor.Enter(reader, ref taken);
-      try {
-        reader.Seek(offset, SeekOrigin.Begin);
-        var items = reader.ReadInt32();
-        var off = reader.ReadInt64();
-        var lengths = reader.ReadFullBlock(items * sizeof(int) * 2).AsSpan();
-        for (; items > 0; --items) {
-          var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-          lengths = lengths.Slice(sizeof(int));
-          var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-          lengths = lengths.Slice(sizeof(int));
-          var key = reader.ReadFullBlock(klen);
-          if (comparer.Equals(keyBytes, key)) {
-            switch (vlen) {
-              case Constants.TOMBSTONE:
-                value = null;
-                break;
-              case 0:
-                value = Array.Empty<byte>();
-                break;
-              default:
-                if (vlen <= -16) {
-                  vlen = -(vlen >> 4);
-                  value = new byte[vlen];
-                  reader.ReadFullBlock(value);
-                }
-                else {
-                  reader.Seek(off, SeekOrigin.Begin);
-                  value = new byte[vlen];
-                  reader.ReadFullBlock(value);
-                }
+      using var cursor = reader.CreateCursor();
+      cursor.Seek(offset, SeekOrigin.Begin);
+      var items = cursor.ReadInt32();
+      var off = cursor.ReadInt64();
+      var lengths = cursor.ReadFullBlock(items * sizeof(int) * 2).AsSpan();
+      for (; items > 0; --items) {
+        var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+        lengths = lengths.Slice(sizeof(int));
+        var vlen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+        lengths = lengths.Slice(sizeof(int));
+        var key = cursor.ReadFullBlock(klen);
+        if (comparer.Equals(keyBytes, key)) {
+          switch (vlen) {
+            case Constants.TOMBSTONE:
+              value = null;
+              break;
+            case 0:
+              value = Array.Empty<byte>();
+              break;
+            default:
+              if (vlen <= -16) {
+                vlen = -(vlen >> 4);
+                value = new byte[vlen];
+                cursor.ReadFullBlock(value);
+              }
+              else {
+                cursor.Seek(off, SeekOrigin.Begin);
+                value = new byte[vlen];
+                cursor.ReadFullBlock(value);
+              }
 
-                break;
-            }
-
-            return true;
+              break;
           }
 
-          if (vlen <= -16) {
-            reader.Seek(-(vlen >> 4), SeekOrigin.Current);
-          }
-          else if (vlen > 0) {
-            off += vlen;
-          }
+          return true;
         }
 
-        // not found
-        value = null;
-        return false;
-      }
-      finally {
-        if (taken) {
-          Monitor.Exit(reader);
+        if (vlen <= -16) {
+          cursor.Seek(-(vlen >> 4), SeekOrigin.Current);
+        }
+        else if (vlen > 0) {
+          off += vlen;
         }
       }
+
+      // not found
+      value = null;
+      return false;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
