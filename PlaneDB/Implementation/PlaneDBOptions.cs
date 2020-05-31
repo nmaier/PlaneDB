@@ -15,7 +15,7 @@ namespace NMaier.PlaneDB
     /// <summary>
     ///   Allowed number of block cache entries at a time
     /// </summary>
-    public int BlockCacheSize { get; private set; } = 256;
+    public int BlockCacheCapacity { get; private set; } = (int)Math.Ceiling((32 << 20) / (double)BlockStream.BlockStream.BLOCK_SIZE);
 
     /// <summary>
     ///   The block transformer
@@ -187,19 +187,38 @@ namespace NMaier.PlaneDB
     ///   Configure the block cache size, meaning how many disk blocks are allowed to be cached in memory at a time. A block is
     ///   usually several kilobytes in size; keep this in mind when configuring this option.
     /// </summary>
-    /// <param name="blockCacheSize">Size of the cache</param>
+    /// <param name="capacity">Size of the cache</param>
     /// <returns>New options with block cache size configured</returns>
-    /// <seealso cref="BlockCacheSize" />
-    public PlaneDBOptions WithBlockCacheSize(int blockCacheSize)
+    /// <seealso cref="BlockCacheCapacity" />
+    public PlaneDBOptions WithBlockCacheCapacity(int capacity)
     {
-      if (blockCacheSize < 0) {
-        throw new ArgumentOutOfRangeException(nameof(blockCacheSize));
+      if (capacity < 0) {
+        throw new ArgumentOutOfRangeException(nameof(capacity));
       }
 
       var rv = Clone();
-      rv.BlockCacheSize = blockCacheSize;
+      rv.BlockCacheCapacity = capacity;
       return rv;
     }
+
+
+    /// <summary>
+    ///   Configure the block cache size, meaning how many disk blocks are allowed to be cached in memory at a time.
+    /// </summary>
+    /// <param name="sizeInBytes">Size of the cache in bytes (approximate)</param>
+    /// <returns>New options with block cache size configured</returns>
+    /// <seealso cref="BlockCacheCapacity" />
+    public PlaneDBOptions WithBlockCacheByteSize(long sizeInBytes)
+    {
+      if (sizeInBytes < 0) {
+        throw new ArgumentOutOfRangeException(nameof(sizeInBytes));
+      }
+
+      var rv = Clone();
+      rv.BlockCacheCapacity = (int)Math.Ceiling(sizeInBytes / (double)BlockStream.BlockStream.BLOCK_SIZE);
+      return rv;
+    }
+
 
     /// <summary>
     ///   Configure the byte comparer implementation
@@ -221,8 +240,8 @@ namespace NMaier.PlaneDB
         throw new ArgumentException("Invalid table space", nameof(TableSpace));
       }
 
-      if (BlockCacheSize < 1 || BlockCacheSize > 100_000) {
-        throw new ArgumentOutOfRangeException(nameof(BlockCacheSize));
+      if (BlockCacheCapacity < 1 || BlockCacheCapacity > 100_000) {
+        throw new ArgumentOutOfRangeException(nameof(BlockCacheCapacity));
       }
 
       if (MaxJournalActions < 0) {

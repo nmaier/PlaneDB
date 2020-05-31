@@ -43,7 +43,7 @@ namespace PlaneTool
 
     public override void Execute()
     {
-      var popts = new PlaneDBOptions().DisableJournal().WithBlockCacheSize(2_048);
+      var popts = new PlaneDBOptions().DisableJournal().WithBlockCacheCapacity(2_048);
       if (!string.IsNullOrEmpty(Owner.Passphrase)) {
         popts = popts.EnableEncryption(Owner.Passphrase);
       }

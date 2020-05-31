@@ -69,7 +69,7 @@ namespace NMaier.PlaneDB
       rwlock = options.ThreadSafe ? (IReadWriteLock)new ReadWriteLock() : new FakeReadWriteLock();
 
       this.options = options.Clone();
-      blockCache = new BlockCache(options.BlockCacheSize);
+      blockCache = new BlockCache(options.BlockCacheCapacity);
       memoryTable = new MemoryTable(options);
 
       if (mode == FileMode.CreateNew || mode == FileMode.OpenOrCreate) {

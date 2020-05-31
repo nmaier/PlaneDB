@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -9,19 +8,15 @@ namespace NMaier.PlaneDB
 {
   internal sealed class BlockCache : IDisposable
   {
-    private readonly LeastRecentlyUsedDictionary<Entry, byte[]> entries;
-    private readonly ArrayPool<byte> pool = ArrayPool<byte>.Create(BlockStream.BlockStream.BLOCK_SIZE, 10);
+    private readonly LeastUsedDictionary<Entry, byte[]> entries;
 
     internal BlockCache(int capacity)
     {
-      entries = new LeastRecentlyUsedDictionary<Entry, byte[]>(capacity);
+      entries = new LeastUsedDictionary<Entry, byte[]>(capacity);
     }
 
     public void Dispose()
     {
-      foreach (var kv in entries) {
-        pool.Return(kv.Value);
-      }
     }
 
     internal IBlockCache Get(ulong id)
@@ -38,9 +33,7 @@ namespace NMaier.PlaneDB
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Invalidate(ulong id, long offset)
     {
-      if (entries.TryRemove(new Entry(id, offset), out var val)) {
-        pool.Return(val);
-      }
+      entries.TryRemove(new Entry(id, offset));
     }
 
     [SuppressMessage("ReSharper", "UseDeconstruction")]
@@ -52,7 +45,6 @@ namespace NMaier.PlaneDB
         }
 
         entries.Remove(kv.Key);
-        pool.Return(kv.Value);
       }
     }
 
