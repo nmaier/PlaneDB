@@ -13,7 +13,7 @@
     <Authors>Nils Maier</Authors>
     <Company />
     <Product>NMaier.PlaneDB</Product>
-    <Version>0.10.1</Version>
+    <Version>0.10.7</Version>
     <Description>Pure .NET Key-Value and Set databases.
 Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -25,6 +25,10 @@ Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
     <IncludeSymbols>true</IncludeSymbols>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Implementation\PlaneDB.cs~RF2f42c6fc.TMP" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="../icon.png" Pack="true" PackagePath="" />

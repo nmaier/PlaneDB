@@ -91,7 +91,7 @@ namespace NMaier.PlaneDB
 
     private void MaybeMergeInternal(bool force = false)
     {
-      for (byte level = 0x00; level < 6; ++level) {
+      for (byte level = 0x00; level < manifest.HighestLevel; ++level) {
         var maxFiles = force ? level < 2 ? 1 : 8 :
           level == 0 ? 8 : 16;
 

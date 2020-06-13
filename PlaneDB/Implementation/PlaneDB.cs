@@ -50,6 +50,7 @@ namespace NMaier.PlaneDB
     private readonly PlaneDBOptions options;
     private readonly IReadWriteLock rwlock;
     private bool allowMerge = true;
+    private int disposed;
     private long generation;
     private IJournal journal;
     private Manifest manifest;
@@ -110,6 +111,9 @@ namespace NMaier.PlaneDB
 
       journal = OpenJournal();
       ReopenSSTables();
+      if (tables.Count(i => i.Value.DiskSize < 524288) > 2) {
+        MaybeMerge(true);
+      }
 
       if (!options.ThreadSafe) {
         return;
@@ -222,6 +226,10 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public void Dispose()
     {
+      if (Interlocked.CompareExchange(ref disposed, 1, 0) != 0) {
+        throw new ObjectDisposedException(nameof(PlaneDB));
+      }
+
       Flush();
       mergeRequests.CompleteAdding();
       mergeThread?.Join();
@@ -826,7 +834,7 @@ namespace NMaier.PlaneDB
 
       manifest.AddToLevel(0x00, newId);
 
-      // At this point the data should be safely on disk, so throw away the dictionary
+      // At this point the data should be safely on disk, so throw away the journal
       journal.Dispose();
       journal = OpenJournal();
       memoryTable = new MemoryTable(options);
