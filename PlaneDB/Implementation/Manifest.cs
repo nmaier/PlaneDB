@@ -152,10 +152,8 @@ namespace NMaier.PlaneDB
       }
 
       using var newManifest = new Manifest(destination, options, counter);
-      foreach (var level in levels) {
-        if (level.Value.Length > 0) {
-          newManifest.CommitLevel(level.Key, level.Value);
-        }
+      foreach (var level in levels.Where(level => level.Value.Length > 0)) {
+        newManifest.CommitLevel(level.Key, level.Value);
       }
     }
 

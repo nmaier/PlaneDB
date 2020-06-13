@@ -95,6 +95,7 @@ namespace NMaier.PlaneDB
         throw new AlreadyLockedException(ex);
       }
 
+      // ReSharper disable once ConvertSwitchStatementToSwitchExpression
       switch (mode) {
         case FileMode.CreateNew:
         case FileMode.Open:
@@ -102,6 +103,10 @@ namespace NMaier.PlaneDB
           manifest = new Manifest(new FileStream(FindFile(MANIFEST_FILE).FullName, mode, FileAccess.ReadWrite,
                                                  FileShare.None, 4096), options);
           break;
+        case FileMode.Append:
+        case FileMode.Create:
+        case FileMode.Truncate:
+          throw new NotSupportedException(nameof(mode));
         default:
           throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
       }
