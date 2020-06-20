@@ -83,8 +83,8 @@ namespace NMaier.PlaneDB
       }
 
       throw journal switch {
-        FileStream fs => new IOException($"Broken journal file: {fs.Name}"),
-        _ => new IOException("Broken journal file")
+        FileStream fs => new BrokenJournalException(fs),
+        _ => new BrokenJournalException()
       };
     }
 

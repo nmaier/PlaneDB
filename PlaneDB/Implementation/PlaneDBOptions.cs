@@ -15,7 +15,8 @@ namespace NMaier.PlaneDB
     /// <summary>
     ///   Allowed number of block cache entries at a time
     /// </summary>
-    public int BlockCacheCapacity { get; private set; } = (int)Math.Ceiling((32 << 20) / (double)BlockStream.BlockStream.BLOCK_SIZE);
+    public int BlockCacheCapacity { get; private set; } =
+      (int)Math.Ceiling((32 << 20) / (double)BlockStream.BlockStream.BLOCK_SIZE);
 
     /// <summary>
     ///   The block transformer
@@ -46,6 +47,12 @@ namespace NMaier.PlaneDB
     ///   Configured thread-safety
     /// </summary>
     public bool ThreadSafe { get; private set; } = true;
+
+    /// <summary>
+    ///   Allow to proceed even when the journal is broken.
+    ///   If allowed, the journal will be skipped and an empty journal will be recreated, and data in it will be lost.
+    /// </summary>
+    public bool AllowSkippingOfBrokenJournal { get; private set; }
 
     /// <summary>
     ///   Clone this instance of options
@@ -82,6 +89,18 @@ namespace NMaier.PlaneDB
     {
       var rv = Clone();
       rv.ThreadSafe = false;
+      return rv;
+    }
+
+    /// <summary>
+    /// Skip broken journals.
+    /// </summary>
+    /// <returns>New options with skipping of broken journals enabled</returns>
+    /// <seealso cref="AllowSkippingOfBrokenJournal" />
+    public PlaneDBOptions SkipBrokenJournal()
+    {
+      var rv = Clone();
+      rv.AllowSkippingOfBrokenJournal = true;
       return rv;
     }
 
@@ -183,24 +202,6 @@ namespace NMaier.PlaneDB
       return rv;
     }
 
-    /// <summary>
-    ///   Configure the block cache size, meaning how many disk blocks are allowed to be cached in memory at a time. A block is
-    ///   usually several kilobytes in size; keep this in mind when configuring this option.
-    /// </summary>
-    /// <param name="capacity">Size of the cache</param>
-    /// <returns>New options with block cache size configured</returns>
-    /// <seealso cref="BlockCacheCapacity" />
-    public PlaneDBOptions WithBlockCacheCapacity(int capacity)
-    {
-      if (capacity < 0) {
-        throw new ArgumentOutOfRangeException(nameof(capacity));
-      }
-
-      var rv = Clone();
-      rv.BlockCacheCapacity = capacity;
-      return rv;
-    }
-
 
     /// <summary>
     ///   Configure the block cache size, meaning how many disk blocks are allowed to be cached in memory at a time.
@@ -216,6 +217,24 @@ namespace NMaier.PlaneDB
 
       var rv = Clone();
       rv.BlockCacheCapacity = (int)Math.Ceiling(sizeInBytes / (double)BlockStream.BlockStream.BLOCK_SIZE);
+      return rv;
+    }
+
+    /// <summary>
+    ///   Configure the block cache size, meaning how many disk blocks are allowed to be cached in memory at a time. A block is
+    ///   usually several kilobytes in size; keep this in mind when configuring this option.
+    /// </summary>
+    /// <param name="capacity">Size of the cache</param>
+    /// <returns>New options with block cache size configured</returns>
+    /// <seealso cref="BlockCacheCapacity" />
+    public PlaneDBOptions WithBlockCacheCapacity(int capacity)
+    {
+      if (capacity < 0) {
+        throw new ArgumentOutOfRangeException(nameof(capacity));
+      }
+
+      var rv = Clone();
+      rv.BlockCacheCapacity = capacity;
       return rv;
     }
 
