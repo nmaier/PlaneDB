@@ -101,11 +101,7 @@ namespace NMaier.PlaneDB
         rwlock.EnterReadLock();
         try {
           if (!manifest.TryGetLevelIds(level, out var ids) || ids.Length < maxFiles) {
-            if (force && level < 2) {
-              continue;
-            }
-
-            return;
+            continue;
           }
 
           manifest.TryGetLevelIds((byte)(level + 1), out var upperIds);
