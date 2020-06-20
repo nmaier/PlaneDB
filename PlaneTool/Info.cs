@@ -140,6 +140,9 @@ namespace PlaneTool
         if (Verbose) {
           Add("Table Files", plane.CurrentTableCount);
           Add("Index Blocks", plane.CurrentIndexBlockCount);
+          foreach (var (key, value) in plane.AllLevels) {
+            Add($"Level {key}", string.Join(", ", value));
+          }
         }
 
         var currentDiskSize = plane.CurrentDiskSize;

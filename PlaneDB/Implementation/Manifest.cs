@@ -77,6 +77,8 @@ namespace NMaier.PlaneDB
 
     public bool IsEmpty => levels.Count <= 0;
 
+    internal SortedList<byte, ulong[]> AllLevels => new SortedList<byte, ulong[]>(levels.ToDictionary(l => l.Key, l => l.Value.ToArray()));
+
     public void Dispose()
     {
       stream.Flush();

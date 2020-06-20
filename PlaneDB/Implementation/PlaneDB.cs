@@ -128,6 +128,11 @@ namespace NMaier.PlaneDB
       mergeThread.Start();
     }
 
+    /// <summary>
+    ///   All levels and corresponding identifiers in this DB
+    /// </summary>
+    public SortedList<byte, ulong[]> AllLevels => manifest.AllLevels;
+
     /// <inheritdoc />
     public void Add(KeyValuePair<byte[], byte[]> item)
     {
