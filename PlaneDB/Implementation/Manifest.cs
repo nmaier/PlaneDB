@@ -56,13 +56,18 @@ namespace NMaier.PlaneDB
       }
 
 
-      for (;;) {
+      for (; ; ) {
         var level = stream.ReadByte();
         if (level < 0) {
           break;
         }
 
         var count = stream.ReadInt32();
+        if (count <= 0) {
+          levels.Remove((byte)level);
+          continue;
+        }
+
         var items = Enumerable.Range(0, count).Select(_ => stream.ReadUInt64()).OrderBy(i => i).ToArray();
         levels[(byte)level] = items;
       }
@@ -131,6 +136,15 @@ namespace NMaier.PlaneDB
     internal void CommitLevel(byte level, params ulong[] items)
     {
       lock (stream) {
+        if (items.Length <= 0) {
+          stream.Seek(0, SeekOrigin.End);
+          stream.WriteByte(level);
+          stream.WriteInt32(0);
+          stream.Flush();
+          levels.Remove(level);
+          return;
+        }
+
         items = items.OrderBy(i => i).Distinct().ToArray();
         stream.Seek(0, SeekOrigin.End);
         stream.WriteByte(level);
