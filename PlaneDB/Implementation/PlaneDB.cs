@@ -67,7 +67,7 @@ namespace NMaier.PlaneDB
       options.Validate();
 
       Location = location;
-      rwlock = options.ThreadSafe ? (IReadWriteLock)new ReadWriteLock() : new FakeReadWriteLock();
+      rwlock = options.ThreadSafe ? options.TrueReadWriteLock : new FakeReadWriteLock();
 
       this.options = options.Clone();
       blockCache = new BlockCache(options.BlockCacheCapacity);
@@ -254,7 +254,6 @@ namespace NMaier.PlaneDB
       manifest.Dispose();
       blockCache.Dispose();
       lockFile.Dispose();
-      rwlock.Dispose();
     }
 
     IEnumerator IEnumerable.GetEnumerator()

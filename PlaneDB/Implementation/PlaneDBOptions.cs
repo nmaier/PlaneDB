@@ -55,6 +55,15 @@ namespace NMaier.PlaneDB
     public bool AllowSkippingOfBrokenJournal { get; private set; }
 
     /// <summary>
+    ///   ReadWrite lock to use.
+    ///   This property is specified the lock will be shared between db instances using the same options or clones.
+    ///   Not setting this property will create an individual default lock per db instance.
+    /// </summary>
+    public IReadWriteLock? ReadWriteLock { get; private set; }
+
+    internal IReadWriteLock TrueReadWriteLock => ReadWriteLock ?? new ReadWriteLock();
+
+    /// <summary>
     ///   Clone this instance of options
     /// </summary>
     /// <returns></returns>
@@ -89,18 +98,6 @@ namespace NMaier.PlaneDB
     {
       var rv = Clone();
       rv.ThreadSafe = false;
-      return rv;
-    }
-
-    /// <summary>
-    /// Skip broken journals.
-    /// </summary>
-    /// <returns>New options with skipping of broken journals enabled</returns>
-    /// <seealso cref="AllowSkippingOfBrokenJournal" />
-    public PlaneDBOptions SkipBrokenJournal()
-    {
-      var rv = Clone();
-      rv.AllowSkippingOfBrokenJournal = true;
       return rv;
     }
 
@@ -176,6 +173,18 @@ namespace NMaier.PlaneDB
     }
 
     /// <summary>
+    ///   Skip broken journals.
+    /// </summary>
+    /// <returns>New options with skipping of broken journals enabled</returns>
+    /// <seealso cref="AllowSkippingOfBrokenJournal" />
+    public PlaneDBOptions SkipBrokenJournal()
+    {
+      var rv = Clone();
+      rv.AllowSkippingOfBrokenJournal = true;
+      return rv;
+    }
+
+    /// <summary>
     ///   Explicitly set a custom block transformer
     /// </summary>
     /// <param name="transformer">The block tranformer to use</param>
@@ -185,6 +194,34 @@ namespace NMaier.PlaneDB
     {
       var rv = Clone();
       rv.BlockTransformer = transformer ?? throw new ArgumentNullException(nameof(transformer));
+      return rv;
+    }
+
+    /// <summary>
+    ///   Use a default lock.
+    ///   Any options objects originating from this options object will use the same lock!
+    ///   It is generally not necessary to call this method, unless you want to create such a shared lock.
+    /// </summary>
+    /// <seealso cref="ReadWriteLock" />
+    /// <returns>New options with the lock set to a default lock instance</returns>
+    public PlaneDBOptions UsingDefaultLock()
+    {
+      var rv = Clone();
+      rv.ReadWriteLock = new ReadWriteLock();
+      return rv;
+    }
+
+    /// <summary>
+    ///   Use this lock instance.
+    ///   Any options objects originating from this options object will use this same lock!
+    ///   It is generally not necessary to call this method, unless you want to create such a shared lock.
+    /// </summary>
+    /// <seealso cref="ReadWriteLock" />
+    /// <returns>New options with the lock set to this lock instance</returns>
+    public PlaneDBOptions UsingLock(IReadWriteLock readWriteLock)
+    {
+      var rv = Clone();
+      rv.ReadWriteLock = readWriteLock ?? throw new ArgumentNullException(nameof(readWriteLock));
       return rv;
     }
 

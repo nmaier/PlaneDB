@@ -310,6 +310,58 @@ namespace NMaier.PlaneDB.Tests
         }
       }
     }
+    
+    [TestMethod]
+    [DataRow(32)]
+    public void TestSetConcurrentSharedLock(int concurrency)
+    {
+      var options = planeDBOptions.UsingDefaultLock();
+      int j = 0;
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.CreateNew,
+                                  options.UsingTableSpace(concurrency.ToString()))) {
+        void Adder()
+        {
+          int i;
+          while ((i = Interlocked.Increment(ref j)) < COUNT) {
+            var k = Encoding.UTF8.GetBytes(i.ToString());
+            var v = Encoding.UTF8.GetBytes(i.ToString() + i + i + i + i);
+            db[k] = v;
+          }
+        }
+
+        var threads = Enumerable.Range(0, concurrency).Select(_ => new Thread(Adder)).ToArray();
+        foreach (var thread in threads) {
+          thread.Start();
+        }
+
+        foreach (var thread in threads) {
+          thread.Join();
+        }
+      }
+
+      j = 0;
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.Open,
+                                  options.UsingTableSpace(concurrency.ToString()))) {
+        void Reader()
+        {
+          int i;
+          while ((i = Interlocked.Increment(ref j)) < COUNT) {
+            var k = Encoding.UTF8.GetBytes(i.ToString());
+            var v = Encoding.UTF8.GetString(db[k]);
+            Assert.AreEqual(v, i.ToString() + i + i + i + i);
+          }
+        }
+
+        var threads = Enumerable.Range(0, concurrency).Select(_ => new Thread(Reader)).ToArray();
+        foreach (var thread in threads) {
+          thread.Start();
+        }
+
+        foreach (var thread in threads) {
+          thread.Join();
+        }
+      }
+    }
 
 #if TEST_ROCKS
     [TestMethod]

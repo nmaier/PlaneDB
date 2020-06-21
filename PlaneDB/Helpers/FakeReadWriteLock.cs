@@ -1,27 +1,7 @@
-﻿using System;
-using System.Runtime.CompilerServices;
-using System.Threading;
+﻿using System.Runtime.CompilerServices;
 
 namespace NMaier.PlaneDB
 {
-  internal interface IReadWriteLock : IDisposable
-  {
-    void EnterReadLock();
-    void EnterUpgradeableReadLock();
-
-    void EnterWriteLock();
-    void ExitReadLock();
-    void ExitUpgradeableReadLock();
-    void ExitWriteLock();
-  }
-
-  internal sealed class ReadWriteLock : ReaderWriterLockSlim, IReadWriteLock
-  {
-    internal ReadWriteLock() : base(LockRecursionPolicy.SupportsRecursion)
-    {
-    }
-  }
-
   internal sealed class FakeReadWriteLock : IReadWriteLock
   {
     public void Dispose()
