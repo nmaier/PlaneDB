@@ -258,6 +258,11 @@ namespace NMaier.PlaneDB
       }
     }
 
+    internal FileInfo FindFile(ulong id)
+    {
+      return FindFile($"{id:D4}");
+    }
+
     internal FileInfo FindFile(string filename)
     {
       return FindFile(location, options, filename);

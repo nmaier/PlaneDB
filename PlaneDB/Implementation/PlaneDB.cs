@@ -27,7 +27,7 @@ namespace NMaier.PlaneDB
   [SuppressMessage("ReSharper", "UseDeconstruction")]
   public sealed partial class PlaneDB : IPlaneDB<byte[], byte[]>
   {
-    private const int BASE_TARGET_SIZE = 8388608;
+    internal const int BASE_TARGET_SIZE = 8388608;
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowKeyExists()
@@ -42,14 +42,11 @@ namespace NMaier.PlaneDB
     }
 
     private readonly BlockCache blockCache;
-    private readonly Stream lockFile;
     private readonly PlaneDBOptions options;
-    private readonly IReadWriteLock rwlock;
+    private readonly PlaneDBState state;
     private bool allowMerge = true;
     private int disposed;
     private long generation;
-    private IJournal journal;
-    private Manifest manifest;
     private MemoryTable memoryTable;
     private KeyValuePair<ulong, SSTable>[] tables = Array.Empty<KeyValuePair<ulong, SSTable>>();
 
@@ -63,7 +60,6 @@ namespace NMaier.PlaneDB
       options.Validate();
 
       Location = location;
-      rwlock = options.ThreadSafe ? options.TrueReadWriteLock : new FakeReadWriteLock();
 
       this.options = options.Clone();
       blockCache = new BlockCache(options.BlockCacheCapacity);
@@ -73,46 +69,8 @@ namespace NMaier.PlaneDB
         location.Create();
       }
 
-      try {
-        lockFile = mode switch {
-          FileMode.CreateNew => new FileStream(Manifest.FindFile(location, options, Manifest.LOCK_FILE).FullName,
-                                               FileMode.CreateNew, FileAccess.ReadWrite,
-                                               FileShare.None),
-          FileMode.Open => new FileStream(Manifest.FindFile(location, options, Manifest.LOCK_FILE).FullName,
-                                          FileMode.Create, FileAccess.ReadWrite,
-                                          FileShare.None),
-          FileMode.OpenOrCreate => new FileStream(Manifest.FindFile(location, options, Manifest.LOCK_FILE).FullName,
-                                                  FileMode.Create, FileAccess.ReadWrite,
-                                                  FileShare.None),
-          _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
-        };
-      }
-      catch (UnauthorizedAccessException ex) {
-        throw new AlreadyLockedException(ex);
-      }
-      catch (IOException ex) {
-        throw new AlreadyLockedException(ex);
-      }
+      state = new PlaneDBState(location, mode, options);
 
-      // ReSharper disable once ConvertSwitchStatementToSwitchExpression
-      switch (mode) {
-        case FileMode.CreateNew:
-        case FileMode.Open:
-        case FileMode.OpenOrCreate:
-          manifest = new Manifest(location, mode, options);
-          break;
-        case FileMode.Append:
-        case FileMode.Create:
-        case FileMode.Truncate:
-          throw new NotSupportedException(nameof(mode));
-        default:
-          throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
-      }
-
-      manifest.RemoveOrphans();
-      MaybeReplayJournal();
-
-      journal = OpenJournal();
       ReopenSSTables();
       if (tables.Count(i => i.Value.DiskSize < 524288) > 2) {
         MaybeMerge(true);
@@ -129,7 +87,7 @@ namespace NMaier.PlaneDB
     /// <summary>
     ///   All levels and corresponding identifiers in this DB
     /// </summary>
-    public SortedList<byte, ulong[]> AllLevels => manifest.AllLevels;
+    public SortedList<byte, ulong[]> AllLevels => state.Manifest.AllLevels;
 
     /// <inheritdoc />
     public void Add(KeyValuePair<byte[], byte[]> item)
@@ -143,9 +101,7 @@ namespace NMaier.PlaneDB
     public void Clear()
     {
       memoryTable = new MemoryTable(options);
-      journal.Dispose();
-      journal = OpenJournal();
-      manifest.Clear();
+      state.Manifest.Clear();
       ReopenSSTables();
     }
 
@@ -184,12 +140,13 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public bool ContainsKey(byte[] key)
     {
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         return ContainsKeyUnlocked(key);
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
     }
 
@@ -219,12 +176,13 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public bool TryGetValue(byte[] key, [NotNullWhen(true)] out byte[] value)
     {
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         return TryGetValueUnlocked(key, out value);
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
     }
 
@@ -246,12 +204,8 @@ namespace NMaier.PlaneDB
         t.Value.Dispose();
       }
 
-      journal.Dispose();
-
-      MaybeCompactManifest();
-      manifest.Dispose();
+      state.Dispose();
       blockCache.Dispose();
-      lockFile.Dispose();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -273,7 +227,8 @@ namespace NMaier.PlaneDB
         return;
       }
 
-      rwlock.EnterWriteLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterWriteLock();
       try {
         allowMerge = false;
         try {
@@ -284,10 +239,10 @@ namespace NMaier.PlaneDB
         }
 
         CompactLevels();
-        MaybeCompactManifest();
+        state.MaybeCompactManifest();
       }
       finally {
-        rwlock.ExitWriteLock();
+        readWriteLock.ExitWriteLock();
       }
     }
 
@@ -309,12 +264,13 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public void Flush()
     {
-      rwlock.EnterWriteLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterWriteLock();
       try {
         FlushUnlocked();
       }
       finally {
-        rwlock.ExitWriteLock();
+        readWriteLock.ExitWriteLock();
       }
     }
 
@@ -324,7 +280,8 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public void MassInsert(Action action)
     {
-      rwlock.EnterWriteLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterWriteLock();
       allowMerge = false;
       try {
         action();
@@ -333,7 +290,7 @@ namespace NMaier.PlaneDB
         allowMerge = true;
         FlushUnlocked();
         MaybeMerge();
-        rwlock.ExitWriteLock();
+        readWriteLock.ExitWriteLock();
       }
     }
 
@@ -344,7 +301,8 @@ namespace NMaier.PlaneDB
     public byte[] AddOrUpdate(byte[] key, Func<byte[], byte[]> addValueFactory,
       Func<byte[], byte[], byte[]> updateValueFactory)
     {
-      rwlock.EnterUpgradeableReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         byte[] newValue;
         if (TryGetValueUnlocked(key, out var existingValue)) {
@@ -357,26 +315,27 @@ namespace NMaier.PlaneDB
           newValue = addValueFactory(key);
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, newValue);
+          state.Journal.Put(key, newValue);
           memoryTable.Put(key, newValue);
           MaybeFlushMemoryTable();
           return newValue;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
     /// <inheritdoc />
     public byte[] AddOrUpdate(byte[] key, byte[] addValue, Func<byte[], byte[], byte[]> updateValueFactory)
     {
-      rwlock.EnterUpgradeableReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (TryGetValueUnlocked(key, out var existingValue)) {
           addValue = updateValueFactory(key, existingValue);
@@ -385,19 +344,19 @@ namespace NMaier.PlaneDB
           }
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, addValue);
+          state.Journal.Put(key, addValue);
           memoryTable.Put(key, addValue);
           MaybeFlushMemoryTable();
           return addValue;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -405,7 +364,8 @@ namespace NMaier.PlaneDB
     public byte[] AddOrUpdate<TArg>(byte[] key, Func<byte[], TArg, byte[]> addValueFactory,
       Func<byte[], byte[], TArg, byte[]> updateValueFactory, TArg factoryArgument)
     {
-      rwlock.EnterUpgradeableReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         byte[] newValue;
         if (TryGetValueUnlocked(key, out var existingValue)) {
@@ -418,19 +378,19 @@ namespace NMaier.PlaneDB
           newValue = addValueFactory(key, factoryArgument);
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, newValue);
+          state.Journal.Put(key, newValue);
           memoryTable.Put(key, newValue);
           MaybeFlushMemoryTable();
           return newValue;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -454,7 +414,8 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public byte[] GetOrAdd(byte[] key, Func<byte[], byte[]> valueFactory)
     {
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       long last;
       try {
         if (TryGetValueUnlocked(key, out var value)) {
@@ -464,10 +425,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (last == generation) {
           if (TryGetValueFromMemoryUnlocked(key, out var value)) {
@@ -479,19 +440,19 @@ namespace NMaier.PlaneDB
         }
 
         var newValue = valueFactory(key);
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, newValue);
+          state.Journal.Put(key, newValue);
           memoryTable.Put(key, newValue);
           MaybeFlushMemoryTable();
           return newValue;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -499,7 +460,8 @@ namespace NMaier.PlaneDB
     public byte[] GetOrAdd(byte[] key, byte[] value)
     {
       long last;
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         if (TryGetValueUnlocked(key, out var existingValue)) {
           return existingValue;
@@ -508,10 +470,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (last == generation) {
           if (TryGetValueFromMemoryUnlocked(key, out var existingValue)) {
@@ -522,19 +484,19 @@ namespace NMaier.PlaneDB
           return existingValue;
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, value);
+          state.Journal.Put(key, value);
           memoryTable.Put(key, value);
           MaybeFlushMemoryTable();
           return value;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -542,7 +504,8 @@ namespace NMaier.PlaneDB
     public byte[] GetOrAdd(byte[] key, byte[] value, out bool added)
     {
       long last;
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         if (TryGetValueUnlocked(key, out var existingValue)) {
           added = false;
@@ -552,10 +515,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (last == generation) {
           if (TryGetValueFromMemoryUnlocked(key, out var existingValue)) {
@@ -568,20 +531,20 @@ namespace NMaier.PlaneDB
           return existingValue;
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, value);
+          state.Journal.Put(key, value);
           memoryTable.Put(key, value);
           MaybeFlushMemoryTable();
           added = true;
           return value;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -589,7 +552,8 @@ namespace NMaier.PlaneDB
     public byte[] GetOrAdd<TArg>(byte[] key, Func<byte[], TArg, byte[]> valueFactory, TArg factoryArgument)
     {
       long last;
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         if (TryGetValueUnlocked(key, out var existingValue)) {
           return existingValue;
@@ -598,10 +562,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (last == generation) {
           if (TryGetValueFromMemoryUnlocked(key, out var value)) {
@@ -613,19 +577,19 @@ namespace NMaier.PlaneDB
         }
 
         var newValue = valueFactory(key, factoryArgument);
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, newValue);
+          state.Journal.Put(key, newValue);
           memoryTable.Put(key, newValue);
           MaybeFlushMemoryTable();
           return newValue;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -641,14 +605,15 @@ namespace NMaier.PlaneDB
     /// <inheritdoc />
     public void Set(byte[] key, byte[] value)
     {
-      rwlock.EnterWriteLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterWriteLock();
       try {
-        journal.Put(key, value);
+        state.Journal.Put(key, value);
         memoryTable.Put(key, value);
         MaybeFlushMemoryTable();
       }
       finally {
-        rwlock.ExitWriteLock();
+        readWriteLock.ExitWriteLock();
       }
     }
 
@@ -656,7 +621,8 @@ namespace NMaier.PlaneDB
     public bool TryAdd(byte[] key, byte[] value)
     {
       long last;
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         if (ContainsKeyUnlocked(key)) {
           return false;
@@ -665,10 +631,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (generation == last) {
           if (memoryTable.ContainsKey(key, out var removed) && !removed) {
@@ -679,19 +645,19 @@ namespace NMaier.PlaneDB
           return false;
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, value);
+          state.Journal.Put(key, value);
           memoryTable.Put(key, value);
           MaybeFlushMemoryTable();
           return true;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -699,7 +665,8 @@ namespace NMaier.PlaneDB
     public bool TryAdd(byte[] key, byte[] value, [NotNullWhen(true)] out byte[] existing)
     {
       long last;
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         if (TryGetValueUnlocked(key, out existing)) {
           return false;
@@ -708,10 +675,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (generation == last) {
           if (TryGetValueFromMemoryUnlocked(key, out existing)) {
@@ -722,45 +689,46 @@ namespace NMaier.PlaneDB
           return false;
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, value);
+          state.Journal.Put(key, value);
           memoryTable.Put(key, value);
           MaybeFlushMemoryTable();
           return true;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
     /// <inheritdoc />
     public bool TryRemove(byte[] key, [NotNullWhen(true)] out byte[] value)
     {
-      rwlock.EnterUpgradeableReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (!TryGetValueUnlocked(key, out value)) {
           return false;
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Remove(key);
+          state.Journal.Remove(key);
           memoryTable.Remove(key);
           MaybeFlushMemoryTable();
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
 
         return true;
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -768,7 +736,8 @@ namespace NMaier.PlaneDB
     public bool TryUpdate(byte[] key, byte[] newValue, byte[] comparisonValue)
     {
       long last;
-      rwlock.EnterReadLock();
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterReadLock();
       try {
         if (!TryGetValueUnlocked(key, out var existingValue) ||
             !options.Comparer.Equals(existingValue, comparisonValue)) {
@@ -778,10 +747,10 @@ namespace NMaier.PlaneDB
         last = generation;
       }
       finally {
-        rwlock.ExitReadLock();
+        readWriteLock.ExitReadLock();
       }
 
-      rwlock.EnterUpgradeableReadLock();
+      readWriteLock.EnterUpgradeableReadLock();
       try {
         if (generation == last) {
           if (!TryGetValueFromMemoryUnlocked(key, out var existingValue) ||
@@ -794,19 +763,19 @@ namespace NMaier.PlaneDB
           return false;
         }
 
-        rwlock.EnterWriteLock();
+        readWriteLock.EnterWriteLock();
         try {
-          journal.Put(key, newValue);
+          state.Journal.Put(key, newValue);
           memoryTable.Put(key, newValue);
           MaybeFlushMemoryTable();
           return true;
         }
         finally {
-          rwlock.ExitWriteLock();
+          readWriteLock.ExitWriteLock();
         }
       }
       finally {
-        rwlock.ExitUpgradeableReadLock();
+        readWriteLock.ExitUpgradeableReadLock();
       }
     }
 
@@ -830,8 +799,8 @@ namespace NMaier.PlaneDB
         return;
       }
 
-      var newId = manifest.AllocateIdentifier();
-      var sst = FindFile(newId);
+      var newId = state.Manifest.AllocateIdentifier();
+      var sst = state.Manifest.FindFile(newId);
 
       using (var builder =
         new SSTableBuilder(new FileStream(sst.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1),
@@ -839,11 +808,10 @@ namespace NMaier.PlaneDB
         memoryTable.CopyTo(builder);
       }
 
-      manifest.AddToLevel(0x00, newId);
+      state.Manifest.AddToLevel(0x00, newId);
 
       // At this point the data should be safely on disk, so throw away the journal
-      journal.Dispose();
-      journal = OpenJournal();
+      state.ClearJournal();
       memoryTable = new MemoryTable(options);
       ReopenSSTables();
 
@@ -900,91 +868,19 @@ namespace NMaier.PlaneDB
       return false;
     }
 
-    private FileInfo FindFile(ulong id)
-    {
-      return manifest.FindFile($"{id:D4}");
-    }
-
-    private void MaybeCompactManifest()
-    {
-      if (manifest.IsEmpty) {
-        return;
-      }
-
-      var man = manifest.File;
-      var newman = manifest.FindFile(Manifest.MANIFEST_FILE + "-NEW");
-      var oldman = manifest.FindFile(Manifest.MANIFEST_FILE + "-OLD");
-      manifest.Compact(new FileStream(newman.FullName, FileMode.Create, FileAccess.ReadWrite,
-                                      FileShare.None, 4096));
-      manifest.Dispose();
-      File.Move(man.FullName, oldman.FullName);
-      File.Move(newman.FullName, man.FullName);
-      manifest = new Manifest(Location, FileMode.Open, options);
-      File.Delete(oldman.FullName);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void MaybeFlushMemoryTable()
     {
-      if (memoryTable.ApproxSize <= BASE_TARGET_SIZE && journal.Length <= BASE_TARGET_SIZE * 5) {
+      if (memoryTable.ApproxSize <= BASE_TARGET_SIZE && state.Journal.Length <= BASE_TARGET_SIZE * 5) {
         return;
       }
 
       FlushUnlocked();
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void MaybeReplayJournal()
-    {
-      if (!options.JournalEnabled) {
-        return;
-      }
-
-      using var jbs =
-        new FileStream(manifest.FindFile(Manifest.JOURNAL_FILE).FullName, FileMode.OpenOrCreate, FileAccess.Read,
-                       FileShare.None, 16384);
-      if (jbs.Length <= 0 || jbs.Length == 4) {
-        return;
-      }
-
-      var newId = manifest.AllocateIdentifier();
-      var sst = FindFile(newId);
-
-      try {
-        using var builder =
-          new SSTableBuilder(new FileStream(sst.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1),
-                             options);
-        Journal.ReplayOnto(jbs, options, builder);
-        manifest.AddToLevel(0x00, newId);
-      }
-      catch (BrokenJournalException) {
-        try {
-          sst.Delete();
-        }
-        catch {
-          // ignored
-        }
-
-        if (!options.AllowSkippingOfBrokenJournal) {
-          throw;
-        }
-      }
-    }
-
-    private IJournal OpenJournal()
-    {
-      if (options.JournalEnabled) {
-        return new Journal(new FileStream(manifest.FindFile(Manifest.JOURNAL_FILE).FullName, FileMode.Create,
-                                          FileAccess.ReadWrite,
-                                          FileShare.None, BASE_TARGET_SIZE, FileOptions.SequentialScan), options);
-      }
-
-      return new FakeJournal();
-    }
-
     private KeyValuePair<ulong, SSTable> OpenSSTable(ulong id)
     {
-      var file = FindFile(id);
+      var file = state.Manifest.FindFile(id);
       return new KeyValuePair<ulong, SSTable>(id, new SSTable(
                                                 new FileStream(file.FullName, FileMode.Open, FileAccess.Read,
                                                                FileShare.Read, 1),
@@ -1000,12 +896,12 @@ namespace NMaier.PlaneDB
         return existing.Remove(id, out var table) ? new KeyValuePair<ulong, SSTable>(id, table) : OpenSSTable(id);
       }
 
-      tables = manifest.Sequence().AsParallel().AsOrdered().WithDegreeOfParallelism(4).Select(MaybeOpenSSTable)
+      tables = state.Manifest.Sequence().AsParallel().AsOrdered().WithDegreeOfParallelism(4).Select(MaybeOpenSSTable)
         .ToArray();
       foreach (var kv in existing) {
         kv.Value.Dispose();
         try {
-          FindFile(kv.Key).Delete();
+          state.Manifest.FindFile(kv.Key).Delete();
         }
         catch {
           // ignored here

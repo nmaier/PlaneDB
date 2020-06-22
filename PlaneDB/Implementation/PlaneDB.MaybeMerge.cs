@@ -29,9 +29,9 @@ namespace NMaier.PlaneDB
               continue;
             }
 
-            var newId = manifest.AllocateIdentifier();
+            var newId = state.Manifest.AllocateIdentifier();
 
-            var sst = FindFile(newId);
+            var sst = state.Manifest.FindFile(newId);
 
             using var builder =
               new SSTableBuilder(
@@ -66,12 +66,12 @@ namespace NMaier.PlaneDB
         flushThread.Join();
       }
 
-      for (byte level = 0x0; level <= Math.Max((byte)0x1, manifest.HighestLevel); ++level) {
+      for (byte level = 0x0; level <= Math.Max((byte)0x1, state.Manifest.HighestLevel); ++level) {
         if (level == 0x1) {
-          manifest.CommitLevel(level, newIds.ToArray());
+          state.Manifest.CommitLevel(level, newIds.ToArray());
         }
         else {
-          manifest.CommitLevel(level);
+          state.Manifest.CommitLevel(level);
         }
       }
 
@@ -91,20 +91,21 @@ namespace NMaier.PlaneDB
 
     private void MaybeMergeInternal(bool force = false)
     {
-      for (byte level = 0x00; level <= manifest.HighestLevel; ++level) {
+      for (byte level = 0x00; level <= state.Manifest.HighestLevel; ++level) {
         var maxFiles = force ? level < 2 ? 1 : 8 :
           level == 0 ? 8 : 16;
 
         KeyValuePair<ulong, SSTable>[] mergeSequence;
         bool needsTombstones;
         List<ulong> newUpper;
-        rwlock.EnterReadLock();
+        var readWriteLock = state.ReadWriteLock;
+        readWriteLock.EnterReadLock();
         try {
-          if (!manifest.TryGetLevelIds(level, out var ids) || ids.Length < maxFiles) {
+          if (!state.Manifest.TryGetLevelIds(level, out var ids) || ids.Length < maxFiles) {
             continue;
           }
 
-          manifest.TryGetLevelIds((byte)(level + 1), out var upperIds);
+          state.Manifest.TryGetLevelIds((byte)(level + 1), out var upperIds);
           newUpper = upperIds.ToList();
 
           ulong[] DropOneUpper()
@@ -124,10 +125,10 @@ namespace NMaier.PlaneDB
             kv.Value.AddRef();
           }
 
-          needsTombstones = newUpper.Count > 0 || level < manifest.HighestLevel - 1;
+          needsTombstones = newUpper.Count > 0 || level < state.Manifest.HighestLevel - 1;
         }
         finally {
-          rwlock.ExitReadLock();
+          readWriteLock.ExitReadLock();
         }
 
         try {
@@ -143,9 +144,9 @@ namespace NMaier.PlaneDB
                   continue;
                 }
 
-                var newId = manifest.AllocateIdentifier();
+                var newId = state.Manifest.AllocateIdentifier();
 
-                var sst = FindFile(newId);
+                var sst = state.Manifest.FindFile(newId);
 
                 using var builder =
                   new SSTableBuilder(
@@ -186,21 +187,21 @@ namespace NMaier.PlaneDB
             flushThread.Join();
           }
 
-          rwlock.EnterWriteLock();
+          readWriteLock.EnterWriteLock();
           try {
             var gone = mergeSequence.Select(e => e.Key).ToHashSet();
-            manifest.CommitLevel(
+            state.Manifest.CommitLevel(
               (byte)(level + 1),
-              manifest.TryGetLevelIds((byte)(level + 1), out var existing)
+              state.Manifest.TryGetLevelIds((byte)(level + 1), out var existing)
                 ? existing.Where(i => !gone.Contains(i)).Concat(newUpper).OrderBy(i => i).ToArray()
                 : newUpper.OrderBy(i => i).ToArray());
 
-            if (manifest.TryGetLevelIds(level, out existing)) {
-              manifest.CommitLevel(level, existing.Where(i => !gone.Contains(i)).ToArray());
+            if (state.Manifest.TryGetLevelIds(level, out existing)) {
+              state.Manifest.CommitLevel(level, existing.Where(i => !gone.Contains(i)).ToArray());
             }
           }
           finally {
-            rwlock.ExitWriteLock();
+            readWriteLock.ExitWriteLock();
           }
 
           try {
@@ -215,12 +216,12 @@ namespace NMaier.PlaneDB
             kv.Value.Dispose();
           }
 
-          rwlock.EnterWriteLock();
+          readWriteLock.EnterWriteLock();
           try {
             ReopenSSTables();
           }
           finally {
-            rwlock.ExitWriteLock();
+            readWriteLock.ExitWriteLock();
           }
         }
       }
