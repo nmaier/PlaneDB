@@ -112,7 +112,7 @@ namespace NMaier.PlaneDB
     {
       switch (stream) {
         case FileStream fs:
-          fs.Flush(true);
+          fs.Flush(options.MaxJournalActions < 0);
           break;
         default:
           stream.Flush();

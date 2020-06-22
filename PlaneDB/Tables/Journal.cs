@@ -94,12 +94,14 @@ namespace NMaier.PlaneDB
     private readonly Stream stream;
     private readonly IBlockTransformer transformer;
     private int actions;
+    private readonly bool fullySync;
 
     internal Journal(Stream stream, PlaneDBOptions options)
     {
       this.stream = stream;
       transformer = options.BlockTransformer;
-      maxActions = options.MaxJournalActions;
+      fullySync = options.MaxJournalActions < 0;
+      maxActions = Math.Max(0, options.MaxJournalActions);
       stream.WriteInt32(Constants.MAGIC);
       flusher = Task.Factory.StartNew(RunFlushLoop, cancel.Token, TaskCreationOptions.LongRunning,
                                       TaskScheduler.Current);
@@ -122,7 +124,7 @@ namespace NMaier.PlaneDB
     {
       switch (stream) {
         case FileStream fs:
-          fs.Flush(true);
+          fs.Flush(fullySync);
           break;
         default:
           stream.Flush();

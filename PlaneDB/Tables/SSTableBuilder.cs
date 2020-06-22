@@ -15,11 +15,13 @@ namespace NMaier.PlaneDB
     private readonly IByteArrayComparer comparer;
     private readonly SortedList<byte[], byte[]?> dictionary;
     private readonly BlockWriteOnceStream writer;
+    private readonly bool fullySync;
 
     internal SSTableBuilder(Stream stream, PlaneDBOptions options)
     {
       writer = new BlockWriteOnceStream(stream, options.BlockTransformer);
       comparer = options.Comparer;
+      fullySync = options.MaxJournalActions < 0;
       dictionary = new SortedList<byte[], byte[]?>(comparer);
     }
 
@@ -96,7 +98,7 @@ namespace NMaier.PlaneDB
           }
         }
 
-        // Try not to fagment too much
+        // Try not to fragment too much
         if (writer.Position % BlockStream.BlockStream.BLOCK_SIZE > BlockStream.BlockStream.BLOCK_SIZE * 2 / 3) {
           writer.SkipToNextBlock();
         }
@@ -152,6 +154,7 @@ namespace NMaier.PlaneDB
 
       writer.WriteInt64(writer.Position - headerOffset);
       dictionary.Clear();
+      writer.Flush(fullySync);
       writer.Dispose();
     }
 

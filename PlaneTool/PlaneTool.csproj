@@ -16,7 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GetOptNet" Version="4.0.7" />
+    <PackageReference Include="GetOptNet" Version="4.0.9" />
     <PackageReference Include="RocksDbNative" Version="6.2.2" />
     <PackageReference Include="RocksDbSharp" Version="6.2.2" />
   </ItemGroup>

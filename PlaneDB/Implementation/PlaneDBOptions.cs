@@ -168,6 +168,20 @@ namespace NMaier.PlaneDB
     public PlaneDBOptions MakeFullySync()
     {
       var rv = Clone();
+      rv.MaxJournalActions = -1;
+      return rv;
+    }
+
+    /// <summary>
+    ///   Makes journal writes fully synchronous, meaning every write is flushed immediately to the OS but not necessarily the disk.
+    /// </summary>
+    /// <remarks>Best for data security, but will impact performance</remarks>
+    /// <seealso cref="FlushJournalAfterNumberOfWrites" />
+    /// <returns>New options with journal configured to be fully sync</returns>
+    /// <seealso cref="MaxJournalActions" />
+    public PlaneDBOptions MakeMostlySync()
+    {
+      var rv = Clone();
       rv.MaxJournalActions = 0;
       return rv;
     }
@@ -300,7 +314,7 @@ namespace NMaier.PlaneDB
         throw new ArgumentOutOfRangeException(nameof(BlockCacheCapacity));
       }
 
-      if (MaxJournalActions < 0) {
+      if (MaxJournalActions < -1) {
         throw new ArgumentOutOfRangeException(nameof(MaxJournalActions));
       }
     }

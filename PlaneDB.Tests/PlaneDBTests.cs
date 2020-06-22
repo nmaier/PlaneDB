@@ -310,7 +310,7 @@ namespace NMaier.PlaneDB.Tests
         }
       }
     }
-    
+
     [TestMethod]
     [DataRow(32)]
     public void TestSetConcurrentSharedLock(int concurrency)
@@ -359,6 +359,48 @@ namespace NMaier.PlaneDB.Tests
 
         foreach (var thread in threads) {
           thread.Join();
+        }
+      }
+    }
+ 
+    [TestMethod]
+    public void TestSetFullySync()
+    {
+      var options = planeDBOptions.MakeFullySync();
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.CreateNew, options)) {
+        for (var i = 0; i < 10; ++i) {
+          var k = Encoding.UTF8.GetBytes(i.ToString());
+          var v = Encoding.UTF8.GetBytes(i.ToString() + i + i + i + i);
+          db[k] = v;
+        }
+      }
+
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.Open, options)) {
+        for (var i = 0; i < 10; ++i) {
+          var k = Encoding.UTF8.GetBytes(i.ToString());
+          var v = Encoding.UTF8.GetString(db[k]);
+          Assert.AreEqual(v, i.ToString() + i + i + i + i);
+        }
+      }
+    }
+    
+    [TestMethod]
+    public void TestSetMostlySync()
+    {
+      var options = planeDBOptions.MakeMostlySync();
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.CreateNew, options)) {
+        for (var i = 0; i < 100; ++i) {
+          var k = Encoding.UTF8.GetBytes(i.ToString());
+          var v = Encoding.UTF8.GetBytes(i.ToString() + i + i + i + i);
+          db[k] = v;
+        }
+      }
+
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.Open, options)) {
+        for (var i = 0; i < 100; ++i) {
+          var k = Encoding.UTF8.GetBytes(i.ToString());
+          var v = Encoding.UTF8.GetString(db[k]);
+          Assert.AreEqual(v, i.ToString() + i + i + i + i);
         }
       }
     }
