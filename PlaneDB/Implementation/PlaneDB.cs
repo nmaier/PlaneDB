@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 using JetBrains.Annotations;
 
@@ -29,9 +28,6 @@ namespace NMaier.PlaneDB
   public sealed partial class PlaneDB : IPlaneDB<byte[], byte[]>
   {
     private const int BASE_TARGET_SIZE = 8388608;
-    private const string JOURNAL_FILE = "JOURNAL";
-    private const string LOCK_FILE = "LOCK";
-    private const string MANIFEST_FILE = "MANIFEST";
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ThrowKeyExists()
@@ -79,11 +75,14 @@ namespace NMaier.PlaneDB
 
       try {
         lockFile = mode switch {
-          FileMode.CreateNew => new FileStream(FindFile(LOCK_FILE).FullName, FileMode.CreateNew, FileAccess.ReadWrite,
+          FileMode.CreateNew => new FileStream(Manifest.FindFile(location, options, Manifest.LOCK_FILE).FullName,
+                                               FileMode.CreateNew, FileAccess.ReadWrite,
                                                FileShare.None),
-          FileMode.Open => new FileStream(FindFile(LOCK_FILE).FullName, FileMode.Create, FileAccess.ReadWrite,
+          FileMode.Open => new FileStream(Manifest.FindFile(location, options, Manifest.LOCK_FILE).FullName,
+                                          FileMode.Create, FileAccess.ReadWrite,
                                           FileShare.None),
-          FileMode.OpenOrCreate => new FileStream(FindFile(LOCK_FILE).FullName, FileMode.Create, FileAccess.ReadWrite,
+          FileMode.OpenOrCreate => new FileStream(Manifest.FindFile(location, options, Manifest.LOCK_FILE).FullName,
+                                                  FileMode.Create, FileAccess.ReadWrite,
                                                   FileShare.None),
           _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null)
         };
@@ -100,8 +99,7 @@ namespace NMaier.PlaneDB
         case FileMode.CreateNew:
         case FileMode.Open:
         case FileMode.OpenOrCreate:
-          manifest = new Manifest(new FileStream(FindFile(MANIFEST_FILE).FullName, mode, FileAccess.ReadWrite,
-                                                 FileShare.None, 4096), options);
+          manifest = new Manifest(location, mode, options);
           break;
         case FileMode.Append:
         case FileMode.Create:
@@ -111,7 +109,7 @@ namespace NMaier.PlaneDB
           throw new ArgumentOutOfRangeException(nameof(mode), mode, null);
       }
 
-      RemoveOrphans();
+      manifest.RemoveOrphans();
       MaybeReplayJournal();
 
       journal = OpenJournal();
@@ -219,7 +217,7 @@ namespace NMaier.PlaneDB
     }
 
     /// <inheritdoc />
-    public bool TryGetValue(byte[] key, out byte[] value)
+    public bool TryGetValue(byte[] key, [NotNullWhen(true)] out byte[] value)
     {
       rwlock.EnterReadLock();
       try {
@@ -698,7 +696,7 @@ namespace NMaier.PlaneDB
     }
 
     /// <inheritdoc />
-    public bool TryAdd(byte[] key, byte[] value, out byte[] existing)
+    public bool TryAdd(byte[] key, byte[] value, [NotNullWhen(true)] out byte[] existing)
     {
       long last;
       rwlock.EnterReadLock();
@@ -741,7 +739,7 @@ namespace NMaier.PlaneDB
     }
 
     /// <inheritdoc />
-    public bool TryRemove(byte[] key, out byte[] value)
+    public bool TryRemove(byte[] key, [NotNullWhen(true)] out byte[] value)
     {
       rwlock.EnterUpgradeableReadLock();
       try {
@@ -864,7 +862,7 @@ namespace NMaier.PlaneDB
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal bool TryGetValueFromMemoryUnlocked(byte[] key, out byte[] value)
+    internal bool TryGetValueFromMemoryUnlocked(byte[] key, [NotNullWhen(true)] out byte[] value)
     {
       if (memoryTable.TryGet(key, out var val) && val != null) {
         value = val;
@@ -876,7 +874,7 @@ namespace NMaier.PlaneDB
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal bool TryGetValueUnlocked(byte[] key, out byte[] value)
+    internal bool TryGetValueUnlocked(byte[] key, [NotNullWhen(true)] out byte[] value)
     {
       if (memoryTable.TryGet(key, out var val)) {
         if (val == null) {
@@ -902,15 +900,9 @@ namespace NMaier.PlaneDB
       return false;
     }
 
-    private FileInfo FindFile(string filename)
-    {
-      var ts = string.IsNullOrEmpty(options.TableSpace) ? "default" : options.TableSpace;
-      return new FileInfo(Path.Combine(Location.FullName, $"{ts}-{filename}.planedb"));
-    }
-
     private FileInfo FindFile(ulong id)
     {
-      return FindFile($"{id:D4}");
+      return manifest.FindFile($"{id:D4}");
     }
 
     private void MaybeCompactManifest()
@@ -919,16 +911,15 @@ namespace NMaier.PlaneDB
         return;
       }
 
-      var man = FindFile(MANIFEST_FILE);
-      var newman = FindFile(MANIFEST_FILE + "-NEW");
-      var oldman = FindFile(MANIFEST_FILE + "-OLD");
+      var man = manifest.File;
+      var newman = manifest.FindFile(Manifest.MANIFEST_FILE + "-NEW");
+      var oldman = manifest.FindFile(Manifest.MANIFEST_FILE + "-OLD");
       manifest.Compact(new FileStream(newman.FullName, FileMode.Create, FileAccess.ReadWrite,
                                       FileShare.None, 4096));
       manifest.Dispose();
       File.Move(man.FullName, oldman.FullName);
       File.Move(newman.FullName, man.FullName);
-      manifest = new Manifest(new FileStream(man.FullName, FileMode.Open, FileAccess.ReadWrite,
-                                             FileShare.None, 4096), options);
+      manifest = new Manifest(Location, FileMode.Open, options);
       File.Delete(oldman.FullName);
     }
 
@@ -950,7 +941,8 @@ namespace NMaier.PlaneDB
       }
 
       using var jbs =
-        new FileStream(FindFile(JOURNAL_FILE).FullName, FileMode.OpenOrCreate, FileAccess.Read, FileShare.None, 16384);
+        new FileStream(manifest.FindFile(Manifest.JOURNAL_FILE).FullName, FileMode.OpenOrCreate, FileAccess.Read,
+                       FileShare.None, 16384);
       if (jbs.Length <= 0 || jbs.Length == 4) {
         return;
       }
@@ -982,7 +974,8 @@ namespace NMaier.PlaneDB
     private IJournal OpenJournal()
     {
       if (options.JournalEnabled) {
-        return new Journal(new FileStream(FindFile(JOURNAL_FILE).FullName, FileMode.Create, FileAccess.ReadWrite,
+        return new Journal(new FileStream(manifest.FindFile(Manifest.JOURNAL_FILE).FullName, FileMode.Create,
+                                          FileAccess.ReadWrite,
                                           FileShare.None, BASE_TARGET_SIZE, FileOptions.SequentialScan), options);
       }
 
@@ -996,54 +989,6 @@ namespace NMaier.PlaneDB
                                                 new FileStream(file.FullName, FileMode.Open, FileAccess.Read,
                                                                FileShare.Read, 1),
                                                 blockCache.Get(id), options));
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private void RemoveOrphans()
-    {
-      IEnumerable<FileInfo> FindOrphans()
-      {
-        var valid = manifest.Sequence().ToLookup(i => i);
-        var ts = string.IsNullOrEmpty(options.TableSpace) ? "default" : options.TableSpace;
-        var needle = new Regex($"{Regex.Escape(options.TableSpace)}-(.*)\\.planedb", RegexOptions.Compiled);
-        foreach (var fi in Location.GetFiles($"{ts}-*.planedb", SearchOption.TopDirectoryOnly)) {
-          var m = needle.Match(fi.Name);
-          if (!m.Success) {
-            continue;
-          }
-
-          var name = m.Groups[1].Value;
-          if (!ulong.TryParse(name, out var id)) {
-            switch (name) {
-              case JOURNAL_FILE:
-              case LOCK_FILE:
-              case MANIFEST_FILE:
-                break;
-              default:
-                yield return fi;
-                break;
-            }
-
-            continue;
-          }
-
-          if (valid.Contains(id)) {
-            continue;
-          }
-
-          yield return fi;
-        }
-      }
-
-      var orphans = FindOrphans().ToArray();
-      foreach (var orphan in orphans) {
-        try {
-          orphan.Delete();
-        }
-        catch {
-          // ignored
-        }
-      }
     }
 
     private void ReopenSSTables()

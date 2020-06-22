@@ -3,24 +3,50 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using static System.String;
 
 namespace NMaier.PlaneDB
 {
   [SuppressMessage("ReSharper", "UseDeconstruction")]
   internal sealed class Manifest : IDisposable
   {
+    internal const string JOURNAL_FILE = "JOURNAL";
+    internal const string LOCK_FILE = "LOCK";
+    internal const string MANIFEST_FILE = "MANIFEST";
+
+    internal static FileInfo FindFile(DirectoryInfo location, PlaneDBOptions options, string filename)
+    {
+      var ts = IsNullOrEmpty(options.TableSpace) ? "default" : options.TableSpace;
+      return new FileInfo(Path.Combine(location.FullName, $"{ts}-{filename}.planedb"));
+    }
+
+    private static FileStream OpenManifestStream(DirectoryInfo location, PlaneDBOptions options, FileMode mode)
+    {
+      return new FileStream(FindFile(location, options, MANIFEST_FILE).FullName, mode, FileAccess.ReadWrite,
+                            FileShare.None, 4096);
+    }
+
     private readonly SortedList<byte, ulong[]> levels = new SortedList<byte, ulong[]>();
+    private readonly DirectoryInfo location;
     private readonly PlaneDBOptions options;
     private readonly Stream stream;
     private ulong counter;
 
-    internal Manifest(Stream stream, PlaneDBOptions options)
-      : this(stream, options, 0)
+    internal Manifest(DirectoryInfo location, FileMode mode, PlaneDBOptions options)
+      : this(location, OpenManifestStream(location, options, mode), options, 0)
     {
     }
 
-    private Manifest(Stream stream, PlaneDBOptions options, ulong counter)
+    internal Manifest(DirectoryInfo location, Stream stream, PlaneDBOptions options)
+      : this(location, stream, options, 0)
     {
+    }
+
+    private Manifest(DirectoryInfo location, Stream stream, PlaneDBOptions options, ulong counter)
+    {
+      this.location = location;
       this.counter = counter;
       this.stream = stream;
       this.options = options;
@@ -37,7 +63,7 @@ namespace NMaier.PlaneDB
       this.counter = stream.ReadUInt64();
 
       var magic2Length = stream.ReadInt32();
-      if (magic2Length < 0 || magic2Length > short.MaxValue) {
+      if (magic2Length < 0 || magic2Length > Int16.MaxValue) {
         throw new BadMagicException();
       }
 
@@ -56,7 +82,7 @@ namespace NMaier.PlaneDB
       }
 
 
-      for (; ; ) {
+      for (;;) {
         var level = stream.ReadByte();
         if (level < 0) {
           break;
@@ -77,11 +103,22 @@ namespace NMaier.PlaneDB
 
     public bool IsEmpty => levels.Count <= 0;
 
-    internal SortedList<byte, ulong[]> AllLevels => new SortedList<byte, ulong[]>(levels.ToDictionary(l => l.Key, l => l.Value.ToArray()));
+    internal SortedList<byte, ulong[]> AllLevels =>
+      new SortedList<byte, ulong[]>(levels.ToDictionary(l => l.Key, l => l.Value.ToArray()));
+
+    internal FileInfo File => FindFile(MANIFEST_FILE);
 
     public void Dispose()
     {
-      stream.Flush();
+      switch (stream) {
+        case FileStream fs:
+          fs.Flush(true);
+          break;
+        default:
+          stream.Flush();
+          break;
+      }
+
       stream.Dispose();
     }
 
@@ -110,6 +147,54 @@ namespace NMaier.PlaneDB
       lock (this) {
         levels.Clear();
         InitEmpty();
+      }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    public void RemoveOrphans()
+    {
+      IEnumerable<FileInfo> FindOrphans()
+      {
+        var valid = Sequence().ToLookup(i => i);
+        var ts = IsNullOrEmpty(options.TableSpace) ? "default" : options.TableSpace;
+        var needle = new Regex($"{Regex.Escape(options.TableSpace)}-(.*)\\.planedb", RegexOptions.Compiled);
+        foreach (var fi in location.GetFiles($"{ts}-*.planedb", SearchOption.TopDirectoryOnly)) {
+          var m = needle.Match(fi.Name);
+          if (!m.Success) {
+            continue;
+          }
+
+          var name = m.Groups[1].Value;
+          if (!ulong.TryParse(name, out var id)) {
+            switch (name) {
+              case JOURNAL_FILE:
+              case LOCK_FILE:
+              case MANIFEST_FILE:
+                break;
+              default:
+                yield return fi;
+                break;
+            }
+
+            continue;
+          }
+
+          if (valid.Contains(id)) {
+            continue;
+          }
+
+          yield return fi;
+        }
+      }
+
+      var orphans = FindOrphans().ToArray();
+      foreach (var orphan in orphans) {
+        try {
+          orphan.Delete();
+        }
+        catch {
+          // ignored
+        }
       }
     }
 
@@ -167,10 +252,15 @@ namespace NMaier.PlaneDB
         destination.SetLength(0);
       }
 
-      using var newManifest = new Manifest(destination, options, counter);
+      using var newManifest = new Manifest(location, destination, options, counter);
       foreach (var level in levels.Where(level => level.Value.Length > 0)) {
         newManifest.CommitLevel(level.Key, level.Value);
       }
+    }
+
+    internal FileInfo FindFile(string filename)
+    {
+      return FindFile(location, options, filename);
     }
 
     internal IEnumerable<ulong> Sequence()

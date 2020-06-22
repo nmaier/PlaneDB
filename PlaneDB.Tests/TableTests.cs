@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -192,7 +193,7 @@ namespace NMaier.PlaneDB.Tests
     public void TestManfiestWrongOptions()
     {
       using var ms = new KeepOpenMemoryStream();
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         for (byte l = 0; l < 128; ++l) {
           var level = new List<ulong>();
           for (var i = 0; i < COUNT; ++i) {
@@ -206,7 +207,7 @@ namespace NMaier.PlaneDB.Tests
 
       // ReSharper disable once AccessToDisposedClosure
       Assert.ThrowsException<BadMagicException>(() => {
-        var manifest = new Manifest(ms, new PlaneDBOptions().EnableEncryption("test"));
+        var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableEncryption("test"));
         manifest.Dispose();
       });
     }
@@ -216,7 +217,7 @@ namespace NMaier.PlaneDB.Tests
     {
       using var ms = new KeepOpenMemoryStream();
       var expectedIds = new List<ulong>();
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         for (byte l = 0; l < 128; ++l) {
           var level = new List<ulong>();
           for (var i = 0; i < COUNT; ++i) {
@@ -229,7 +230,7 @@ namespace NMaier.PlaneDB.Tests
         }
       }
 
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         var seq = manifest.Sequence();
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }
@@ -240,7 +241,7 @@ namespace NMaier.PlaneDB.Tests
     {
       using var ms = new KeepOpenMemoryStream();
       var expectedIds = new List<ulong>();
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         for (byte l = 0; l < 128; ++l) {
           var level = new List<ulong>();
           for (var i = 0; i < COUNT; ++i) {
@@ -257,7 +258,7 @@ namespace NMaier.PlaneDB.Tests
 
       expectedIds.Clear();
 
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         var seq = manifest.Sequence();
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }
@@ -268,7 +269,7 @@ namespace NMaier.PlaneDB.Tests
     {
       using var ms = new KeepOpenMemoryStream();
       var expectedIds = new List<ulong>();
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         for (byte l = 0; l < 128; ++l) {
           var level = new List<ulong>();
           for (var i = 0; i < COUNT; ++i) {
@@ -286,7 +287,7 @@ namespace NMaier.PlaneDB.Tests
         }
       }
 
-      using (var manifest = new Manifest(ms, new PlaneDBOptions().EnableCompression())) {
+      using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
         var seq = manifest.Sequence();
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }

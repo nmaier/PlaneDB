@@ -120,7 +120,15 @@ namespace NMaier.PlaneDB
 
     public void Flush()
     {
-      stream.Flush();
+      switch (stream) {
+        case FileStream fs:
+          fs.Flush(true);
+          break;
+        default:
+          stream.Flush();
+          break;
+      }
+
       Interlocked.Exchange(ref actions, 0);
     }
 
