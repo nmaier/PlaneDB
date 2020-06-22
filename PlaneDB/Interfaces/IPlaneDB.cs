@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using JetBrains.Annotations;
+#if !NET48
+using NotNullWhenAttribute = System.Diagnostics.CodeAnalysis.NotNullWhenAttribute;
+#endif
 
 namespace NMaier.PlaneDB
 {
@@ -179,7 +182,7 @@ namespace NMaier.PlaneDB
     ///   true if the key/value pair was added to the <see cref="IPlaneDB{TKey,TValue}" />
     ///   successfully; otherwise, false.
     /// </returns>
-    bool TryAdd(TKey key, TValue value, out TValue existing);
+    bool TryAdd(TKey key, TValue value, [NotNullWhen(true)] out TValue existing);
 
 
     /// <summary>
@@ -199,7 +202,7 @@ namespace NMaier.PlaneDB
     ///   <paramref name="key" /> is a null reference
     ///   (Nothing in Visual Basic).
     /// </exception>
-    bool TryRemove(TKey key, out TValue value);
+    bool TryRemove(TKey key, [NotNullWhen(true)] out TValue value);
 
     /// <summary>
     ///   Compares the existing value for the specified key with a specified value, and if they're equal,
