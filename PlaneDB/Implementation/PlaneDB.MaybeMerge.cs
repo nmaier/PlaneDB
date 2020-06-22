@@ -66,12 +66,12 @@ namespace NMaier.PlaneDB
         flushThread.Join();
       }
 
-      for (byte level = 0x0; level <= Math.Max((byte)0x1, state.Manifest.HighestLevel); ++level) {
+      for (byte level = 0x0; level <= Math.Max((byte)0x1, state.Manifest.GetHighestLevel(family)); ++level) {
         if (level == 0x1) {
-          state.Manifest.CommitLevel(level, newIds.ToArray());
+          state.Manifest.CommitLevel(family, level, newIds.ToArray());
         }
         else {
-          state.Manifest.CommitLevel(level);
+          state.Manifest.CommitLevel(family, level);
         }
       }
 
@@ -91,7 +91,7 @@ namespace NMaier.PlaneDB
 
     private void MaybeMergeInternal(bool force = false)
     {
-      for (byte level = 0x00; level <= state.Manifest.HighestLevel; ++level) {
+      for (byte level = 0x00; level <= state.Manifest.GetHighestLevel(family); ++level) {
         var maxFiles = force ? level < 2 ? 1 : 8 :
           level == 0 ? 8 : 16;
 
@@ -101,11 +101,11 @@ namespace NMaier.PlaneDB
         var readWriteLock = state.ReadWriteLock;
         readWriteLock.EnterReadLock();
         try {
-          if (!state.Manifest.TryGetLevelIds(level, out var ids) || ids.Length < maxFiles) {
+          if (!state.Manifest.TryGetLevelIds(family, level, out var ids) || ids.Length < maxFiles) {
             continue;
           }
 
-          state.Manifest.TryGetLevelIds((byte)(level + 1), out var upperIds);
+          state.Manifest.TryGetLevelIds(family, (byte)(level + 1), out var upperIds);
           newUpper = upperIds.ToList();
 
           ulong[] DropOneUpper()
@@ -125,7 +125,7 @@ namespace NMaier.PlaneDB
             kv.Value.AddRef();
           }
 
-          needsTombstones = newUpper.Count > 0 || level < state.Manifest.HighestLevel - 1;
+          needsTombstones = newUpper.Count > 0 || level < state.Manifest.GetHighestLevel(family) - 1;
         }
         finally {
           readWriteLock.ExitReadLock();
@@ -191,13 +191,13 @@ namespace NMaier.PlaneDB
           try {
             var gone = mergeSequence.Select(e => e.Key).ToHashSet();
             state.Manifest.CommitLevel(
-              (byte)(level + 1),
-              state.Manifest.TryGetLevelIds((byte)(level + 1), out var existing)
+              family, (byte)(level + 1),
+              state.Manifest.TryGetLevelIds(family, (byte)(level + 1), out var existing)
                 ? existing.Where(i => !gone.Contains(i)).Concat(newUpper).OrderBy(i => i).ToArray()
                 : newUpper.OrderBy(i => i).ToArray());
 
-            if (state.Manifest.TryGetLevelIds(level, out existing)) {
-              state.Manifest.CommitLevel(level, existing.Where(i => !gone.Contains(i)).ToArray());
+            if (state.Manifest.TryGetLevelIds(family, level, out existing)) {
+              state.Manifest.CommitLevel(family, level, existing.Where(i => !gone.Contains(i)).ToArray());
             }
           }
           finally {

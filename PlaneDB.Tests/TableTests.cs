@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -201,7 +202,7 @@ namespace NMaier.PlaneDB.Tests
             level.Add(id);
           }
 
-          manifest.CommitLevel(l, level.ToArray());
+          manifest.CommitLevel(Array.Empty<byte>(), l, level.ToArray());
         }
       }
 
@@ -213,8 +214,11 @@ namespace NMaier.PlaneDB.Tests
     }
 
     [TestMethod]
-    public void TestManifest()
+    [DataRow(0)]
+    [DataRow(1)]
+    public void TestManifest(int familyLen)
     {
+      var family = new byte[familyLen];
       using var ms = new KeepOpenMemoryStream();
       var expectedIds = new List<ulong>();
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
@@ -226,19 +230,22 @@ namespace NMaier.PlaneDB.Tests
             level.Add(id);
           }
 
-          manifest.CommitLevel(l, level.ToArray());
+          manifest.CommitLevel(Array.Empty<byte>(), l, level.ToArray());
         }
       }
 
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
-        var seq = manifest.Sequence();
+        var seq = manifest.Sequence(Array.Empty<byte>());
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }
     }
 
     [TestMethod]
-    public void TestManifestRemoves()
+    [DataRow(0)]
+    [DataRow(1)]
+    public void TestManifestRemoves(int familyLen)
     {
+      var family = new byte[familyLen];
       using var ms = new KeepOpenMemoryStream();
       var expectedIds = new List<ulong>();
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
@@ -250,23 +257,26 @@ namespace NMaier.PlaneDB.Tests
             level.Add(id);
           }
 
-          manifest.CommitLevel(l, level.ToArray());
+          manifest.CommitLevel(family, l, level.ToArray());
           level.Clear();
-          manifest.CommitLevel(l, level.ToArray());
+          manifest.CommitLevel(family, l, level.ToArray());
         }
       }
 
       expectedIds.Clear();
 
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
-        var seq = manifest.Sequence();
+        var seq = manifest.Sequence(family);
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }
     }
 
     [TestMethod]
-    public void TestManifestUpdates()
+    [DataRow(0)]
+    [DataRow(1)]
+    public void TestManifestUpdates(int familyLen)
     {
+      var family = new byte[familyLen];
       using var ms = new KeepOpenMemoryStream();
       var expectedIds = new List<ulong>();
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
@@ -281,14 +291,14 @@ namespace NMaier.PlaneDB.Tests
             level.Add(id);
           }
 
-          manifest.CommitLevel(l, level.ToArray());
+          manifest.CommitLevel(family, l, level.ToArray());
           level.RemoveAt(0);
-          manifest.CommitLevel(l, level.ToArray());
+          manifest.CommitLevel(family, l, level.ToArray());
         }
       }
 
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
-        var seq = manifest.Sequence();
+        var seq = manifest.Sequence(family);
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }
     }

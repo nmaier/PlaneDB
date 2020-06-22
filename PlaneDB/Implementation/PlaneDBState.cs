@@ -121,7 +121,7 @@ namespace NMaier.PlaneDB
           new SSTableBuilder(new FileStream(sst.FullName, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1),
                              options);
         NMaier.PlaneDB.Journal.ReplayOnto(jbs, options, builder);
-        manifest.AddToLevel(0x00, newId);
+        manifest.AddToLevel(Array.Empty<byte>(), 0x00, newId);
       }
       catch (BrokenJournalException) {
         try {

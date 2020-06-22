@@ -49,6 +49,7 @@ namespace NMaier.PlaneDB
     private long generation;
     private MemoryTable memoryTable;
     private KeyValuePair<ulong, SSTable>[] tables = Array.Empty<KeyValuePair<ulong, SSTable>>();
+    private readonly byte[] family = Array.Empty<byte>();
 
     /// <inheritdoc />
     /// <param name="location">Directory that will store the PlaneDB</param>
@@ -87,7 +88,7 @@ namespace NMaier.PlaneDB
     /// <summary>
     ///   All levels and corresponding identifiers in this DB
     /// </summary>
-    public SortedList<byte, ulong[]> AllLevels => state.Manifest.AllLevels;
+    public SortedList<byte, ulong[]> AllLevels => state.Manifest.GetAllLevels(family);
 
     /// <inheritdoc />
     public void Add(KeyValuePair<byte[], byte[]> item)
@@ -808,7 +809,7 @@ namespace NMaier.PlaneDB
         memoryTable.CopyTo(builder);
       }
 
-      state.Manifest.AddToLevel(0x00, newId);
+      state.Manifest.AddToLevel(family, 0x00, newId);
 
       // At this point the data should be safely on disk, so throw away the journal
       state.ClearJournal();
@@ -896,7 +897,7 @@ namespace NMaier.PlaneDB
         return existing.Remove(id, out var table) ? new KeyValuePair<ulong, SSTable>(id, table) : OpenSSTable(id);
       }
 
-      tables = state.Manifest.Sequence().AsParallel().AsOrdered().WithDegreeOfParallelism(4).Select(MaybeOpenSSTable)
+      tables = state.Manifest.Sequence(family).AsParallel().AsOrdered().WithDegreeOfParallelism(4).Select(MaybeOpenSSTable)
         .ToArray();
       foreach (var kv in existing) {
         kv.Value.Dispose();

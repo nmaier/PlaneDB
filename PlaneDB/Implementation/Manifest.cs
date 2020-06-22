@@ -28,7 +28,7 @@ namespace NMaier.PlaneDB
                             FileShare.None, 4096);
     }
 
-    private readonly SortedList<byte, ulong[]> levels = new SortedList<byte, ulong[]>();
+    private readonly SortedList<byte[], SortedList<byte, ulong[]>> levels = new SortedList<byte[], SortedList<byte, ulong[]>>(new ByteArrayComparer());
     private readonly DirectoryInfo location;
     private readonly PlaneDBOptions options;
     private readonly Stream stream;
@@ -89,22 +89,49 @@ namespace NMaier.PlaneDB
         }
 
         var count = stream.ReadInt32();
-        if (count <= 0) {
-          levels.Remove((byte)level);
+        byte[] name = Array.Empty<byte>();
+        if (count < 0) {
+          if (count == int.MinValue) {
+            count = 0;
+          }
+          else {
+            count = -count;
+          }
+
+          var namelen = stream.ReadInt32();
+          name = stream.ReadFullBlock(namelen);
+        }
+
+        if (count == 0) {
+          GetLevel(name).Remove((byte)level);
           continue;
         }
 
         var items = Enumerable.Range(0, count).Select(_ => stream.ReadUInt64()).OrderBy(i => i).ToArray();
-        levels[(byte)level] = items;
+        EnsureLevel(name)[(byte)level] = items;
       }
     }
 
-    internal byte HighestLevel => levels.Keys.LastOrDefault();
+    private SortedList<byte, ulong[]> GetLevel(byte[] name)
+    {
+      return levels.TryGetValue(name, out var rv) ? rv : new SortedList<byte, ulong[]>();
+    }
+    
+    private SortedList<byte, ulong[]> EnsureLevel(byte[] name)
+    {
+      if (!levels.TryGetValue(name, out var rv)) {
+        levels[name] = rv = new SortedList<byte, ulong[]>();
+      }
+
+      return rv;
+    }
+
+    internal byte GetHighestLevel(byte[] name) => GetLevel(name).Keys.LastOrDefault();
 
     public bool IsEmpty => levels.Count <= 0;
 
-    internal SortedList<byte, ulong[]> AllLevels =>
-      new SortedList<byte, ulong[]>(levels.ToDictionary(l => l.Key, l => l.Value.ToArray()));
+    internal SortedList<byte, ulong[]> GetAllLevels(byte[] name) =>
+      new SortedList<byte, ulong[]>(GetLevel(name).ToDictionary(l => l.Key, l => l.Value.ToArray()));
 
     internal FileInfo File => FindFile(MANIFEST_FILE);
 
@@ -122,19 +149,20 @@ namespace NMaier.PlaneDB
       stream.Dispose();
     }
 
-    public void AddToLevel(byte level, ulong id)
+    public void AddToLevel(byte[] name, byte level, ulong id)
     {
       ulong[] items;
-      if (!levels.TryGetValue(level, out var val)) {
-        items = levels[level] = new[] { id };
+      var l = EnsureLevel(name);
+      if (!l.TryGetValue(level, out var val)) {
+        items = l[level] = new[] { id };
       }
       else {
-        items = levels[level] = val.Concat(new[] { id }).OrderBy(i => i).ToArray();
+        items = l[level] = val.Concat(new[] { id }).OrderBy(i => i).ToArray();
       }
 
       stream.Seek(0, SeekOrigin.End);
       stream.WriteByte(level);
-      stream.WriteInt32(items.Length);
+      stream.WriteInt32(name.Length > 0 ? -items.Length : items.Length);
       foreach (var item in items) {
         stream.WriteUInt64(item);
       }
@@ -155,7 +183,7 @@ namespace NMaier.PlaneDB
     {
       IEnumerable<FileInfo> FindOrphans()
       {
-        var valid = Sequence().ToLookup(i => i);
+        var valid = FullSequence().ToLookup(i => i);
         var ts = IsNullOrEmpty(options.TableSpace) ? "default" : options.TableSpace;
         var needle = new Regex($"{Regex.Escape(options.TableSpace)}-(.*)\\.planedb", RegexOptions.Compiled);
         foreach (var fi in location.GetFiles($"{ts}-*.planedb", SearchOption.TopDirectoryOnly)) {
@@ -198,9 +226,9 @@ namespace NMaier.PlaneDB
       }
     }
 
-    public bool TryGetLevelIds(byte level, out ulong[] ids)
+    public bool TryGetLevelIds(byte[] name, byte level, out ulong[] ids)
     {
-      if (!levels.TryGetValue(level, out var myIds)) {
+      if (!GetLevel(name).TryGetValue(level, out var myIds)) {
         ids = Array.Empty<ulong>();
         return false;
       }
@@ -220,28 +248,38 @@ namespace NMaier.PlaneDB
       }
     }
 
-    internal void CommitLevel(byte level, params ulong[] items)
+    internal void CommitLevel(byte[] name, byte level, params ulong[] items)
     {
       lock (stream) {
         if (items.Length <= 0) {
           stream.Seek(0, SeekOrigin.End);
           stream.WriteByte(level);
-          stream.WriteInt32(0);
+          stream.WriteInt32(name.Length > 0 ? int.MinValue : 0);
+          if (name.Length > 0) {
+            stream.WriteInt32(name.Length);
+            stream.Write(name);
+          }
+
           stream.Flush();
-          levels.Remove(level);
+          GetLevel(name).Remove(level);
           return;
         }
 
         items = items.OrderBy(i => i).Distinct().ToArray();
         stream.Seek(0, SeekOrigin.End);
         stream.WriteByte(level);
-        stream.WriteInt32(items.Length);
+        stream.WriteInt32(name.Length > 0 ? -items.Length : items.Length);
+        if (name.Length > 0) {
+          stream.WriteInt32(name.Length);
+          stream.Write(name);
+        }
+
         foreach (var item in items) {
           stream.WriteUInt64(item);
         }
 
         stream.Flush();
-        levels[level] = items;
+        EnsureLevel(name)[level] = items;
       }
     }
 
@@ -253,8 +291,10 @@ namespace NMaier.PlaneDB
       }
 
       using var newManifest = new Manifest(location, destination, options, counter);
-      foreach (var level in levels.Where(level => level.Value.Length > 0)) {
-        newManifest.CommitLevel(level.Key, level.Value);
+      foreach (var family in levels) {
+        foreach (var level in family.Value.Where(level => level.Value.Length > 0)) {
+          newManifest.CommitLevel(family.Key, level.Key, level.Value);
+        }
       }
     }
 
@@ -268,9 +308,13 @@ namespace NMaier.PlaneDB
       return FindFile(location, options, filename);
     }
 
-    internal IEnumerable<ulong> Sequence()
+    internal IEnumerable<ulong> Sequence(byte[] name)
     {
-      return levels.OrderBy(i => i.Key).SelectMany(i => i.Value.Reverse());
+      return GetLevel(name).OrderBy(i => i.Key).SelectMany(i => i.Value.Reverse());
+    }
+    private IEnumerable<ulong> FullSequence()
+    {
+      return levels.SelectMany(i => i.Value).OrderBy(i => i.Key).SelectMany(i => i.Value.Reverse());
     }
 
     private void InitEmpty()
