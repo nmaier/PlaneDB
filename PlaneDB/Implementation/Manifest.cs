@@ -312,6 +312,7 @@ namespace NMaier.PlaneDB
     {
       return GetLevel(name).OrderBy(i => i.Key).SelectMany(i => i.Value.Reverse());
     }
+
     private IEnumerable<ulong> FullSequence()
     {
       return levels.SelectMany(i => i.Value).OrderBy(i => i.Key).SelectMany(i => i.Value.Reverse());

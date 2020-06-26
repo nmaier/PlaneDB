@@ -39,33 +39,31 @@ namespace NMaier.PlaneDB.Tests
         db.Compact();
       }
 
-      var read = 0;
+      int read;
       using (var db = new PlaneSet(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         Assert.AreEqual(db.Count, 10000);
         Assert.IsTrue(db.Remove(BitConverter.GetBytes(1000)));
         Assert.AreEqual(db.Count, 9999);
         Assert.IsFalse(db.Remove(BitConverter.GetBytes(1000)));
-        read += db.Select(e => e).Count();
+        read = db.Select(e => e).Count();
 
         Assert.AreEqual(db.Count, read);
       }
 
-      read = 0;
       using (var db = new PlaneSet(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         Assert.AreEqual(db.Count, 9999);
         Assert.IsFalse(db.Remove(BitConverter.GetBytes(1000)));
         Assert.AreEqual(db.Count, 9999);
-        read += db.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
+        read = db.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
 
         Assert.AreEqual(db.Count, read);
       }
 
-      read = 0;
       using (var db = new PlaneSet(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         Assert.AreEqual(db.Count, 9999);
         Assert.IsFalse(db.Remove(BitConverter.GetBytes(1000)));
         Assert.AreEqual(db.Count, 9999);
-        read += db.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
+        read = db.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
 
         Assert.AreEqual(db.Count, read);
       }

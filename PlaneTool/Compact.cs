@@ -8,7 +8,7 @@ using NMaier.PlaneDB;
 namespace PlaneTool
 {
   [GetOptOptions(AcceptPrefixType = ArgumentPrefixTypes.Dashes, OnUnknownArgument = UnknownArgumentsAction.Throw,
-    UsageIntro = "Compacts a database")]
+                 UsageIntro = "Compacts a database")]
   [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
   internal sealed class Compact : GetOptCommand<Options>
   {

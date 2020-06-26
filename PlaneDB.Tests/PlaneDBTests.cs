@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+
 #if TEST_ROCKS
 using RocksDbSharp;
 #endif
@@ -61,33 +62,31 @@ namespace NMaier.PlaneDB.Tests
         // XXX Verify table count and sequence are correct
       }
 
-      var read = 0;
+      int read;
       using (var db = new PlaneDB(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         Assert.AreEqual(db.Count, 10000);
         Assert.IsTrue(db.TryRemove(BitConverter.GetBytes(1000), out _));
         Assert.AreEqual(db.Count, 9999);
         Assert.IsFalse(db.TryRemove(BitConverter.GetBytes(1000), out _));
-        read += db.Select((e, i) => new KeyValuePair<byte[], int>(e.Key, i)).Count();
+        read = db.Select((e, i) => new KeyValuePair<byte[], int>(e.Key, i)).Count();
 
         Assert.AreEqual(db.Count, read);
       }
 
-      read = 0;
       using (var db = new PlaneDB(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         Assert.AreEqual(db.Count, 9999);
         Assert.IsFalse(db.TryRemove(BitConverter.GetBytes(1000), out _));
         Assert.AreEqual(db.Count, 9999);
-        read += db.KeysIterator.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
+        read = db.KeysIterator.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
 
         Assert.AreEqual(db.Count, read);
       }
 
-      read = 0;
       using (var db = new PlaneDB(di, FileMode.Open, planeDBOptions.DisableJournal())) {
         Assert.AreEqual(db.Count, 9999);
         Assert.IsFalse(db.TryRemove(BitConverter.GetBytes(1000), out _));
         Assert.AreEqual(db.Count, 9999);
-        read += db.Keys.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
+        read = db.Keys.Select((e, i) => new KeyValuePair<byte[], int>(e, i)).Count();
 
         Assert.AreEqual(db.Count, read);
       }

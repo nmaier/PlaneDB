@@ -10,8 +10,8 @@ using RocksDbSharp;
 namespace PlaneTool
 {
   [GetOptOptions(AcceptPrefixType = ArgumentPrefixTypes.Dashes, OnUnknownArgument = UnknownArgumentsAction.Throw,
-    UsageIntro = "Import a RocksDB or LevelDB to a PlaneDB tablespace",
-    UsageEpilog = "Warning: The tablespace will be cleared!")]
+                 UsageIntro = "Import a RocksDB or LevelDB to a PlaneDB tablespace",
+                 UsageEpilog = "Warning: The tablespace will be cleared!")]
   [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
   internal sealed class ImportRocksDB : GetOptCommand<Options>
   {

@@ -51,7 +51,6 @@ namespace NMaier.PlaneDB
     private KeyValuePair<ulong, SSTable>[] tables = Array.Empty<KeyValuePair<ulong, SSTable>>();
     private readonly byte[] family = Array.Empty<byte>();
 
-    /// <inheritdoc />
     /// <param name="location">Directory that will store the PlaneDB</param>
     /// <param name="mode">File mode to use, supported are: CreateNew, Open (existing), OpenOrCreate</param>
     /// <param name="options">Options to use, such as the transformer, cache settings, etc.</param>

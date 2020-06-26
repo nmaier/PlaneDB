@@ -4,10 +4,6 @@ namespace NMaier.PlaneDB
 {
   internal sealed class FakeReadWriteLock : IReadWriteLock
   {
-    public void Dispose()
-    {
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void EnterReadLock()
     {

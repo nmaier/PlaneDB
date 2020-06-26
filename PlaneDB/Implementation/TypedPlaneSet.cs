@@ -15,9 +15,8 @@ namespace NMaier.PlaneDB
   public class TypedPlaneSet<T> : IPlaneSet<T>
   {
     private readonly ISerializer<T> serializer;
-    private PlaneSet wrapped;
+    private readonly PlaneSet wrapped;
 
-    /// <inheritdoc />
     /// <summary>
     ///   Creates a new typed persistent set
     /// </summary>

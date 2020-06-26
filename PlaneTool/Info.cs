@@ -12,7 +12,7 @@ using NMaier.PlaneDB;
 namespace PlaneTool
 {
   [GetOptOptions(AcceptPrefixType = ArgumentPrefixTypes.Dashes, OnUnknownArgument = UnknownArgumentsAction.Throw,
-    UsageIntro = "Print information about a DB")]
+                 UsageIntro = "Print information about a DB")]
   [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
   [SuppressMessage("ReSharper", "ConvertToConstant.Global")]
   internal sealed class Info : GetOptCommand<Options>
@@ -70,27 +70,27 @@ namespace PlaneTool
       }
     }
 
-    void Add(string section)
+    private void Add(string section)
     {
       infos.Add(new KeyValuePair<string, string>(section, string.Empty));
     }
 
-    void Add(string entry, string value)
+    private void Add(string entry, string value)
     {
       infos.Add(new KeyValuePair<string, string>(entry, value));
     }
 
-    void Add(string entry, long value)
+    private void Add(string entry, long value)
     {
       infos.Add(new KeyValuePair<string, string>(entry, $"{value:N0}"));
     }
 
-    void Add(string entry, double value)
+    private void Add(string entry, double value)
     {
       infos.Add(new KeyValuePair<string, string>(entry, $"{value:N3}"));
     }
 
-    void AddByte(string entry, long avalue)
+    private void AddByte(string entry, long avalue)
     {
       var value = Math.Abs(avalue);
       if (value < 1024) {
@@ -99,7 +99,7 @@ namespace PlaneTool
       }
 
       var neg = avalue < 0;
-      double fmt = value / 1024.0;
+      var fmt = value / 1024.0;
       string unit = "KiB";
 
       if (fmt >= 1024) {

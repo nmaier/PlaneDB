@@ -9,7 +9,7 @@ using NMaier.GetOptNet;
 namespace PlaneTool
 {
   [GetOptOptions(AcceptPrefixType = ArgumentPrefixTypes.Dashes, OnUnknownArgument = UnknownArgumentsAction.Throw,
-    UsageIntro = "Various tools for managing a PlaneDB")]
+                 UsageIntro = "Various tools for managing a PlaneDB")]
   internal sealed class Options : GetOpt
   {
     public static void Error(string msg)

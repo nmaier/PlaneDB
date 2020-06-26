@@ -230,12 +230,12 @@ namespace NMaier.PlaneDB.Tests
             level.Add(id);
           }
 
-          manifest.CommitLevel(Array.Empty<byte>(), l, level.ToArray());
+          manifest.CommitLevel(family, l, level.ToArray());
         }
       }
 
       using (var manifest = new Manifest(new DirectoryInfo("."), ms, new PlaneDBOptions().EnableCompression())) {
-        var seq = manifest.Sequence(Array.Empty<byte>());
+        var seq = manifest.Sequence(family);
         Assert.IsTrue(expectedIds.SequenceEqual(seq.OrderBy(i => i)));
       }
     }

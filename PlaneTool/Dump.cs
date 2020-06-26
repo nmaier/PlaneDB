@@ -10,7 +10,7 @@ using NMaier.PlaneDB;
 namespace PlaneTool
 {
   [GetOptOptions(AcceptPrefixType = ArgumentPrefixTypes.Dashes, OnUnknownArgument = UnknownArgumentsAction.Throw,
-    UsageIntro = "Dump a database to a compact binary file")]
+                 UsageIntro = "Dump a database to a compact binary file")]
   [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
   internal sealed class Dump : GetOptCommand<Options>
   {

@@ -9,7 +9,7 @@ namespace PlaneTool
   internal static class Program
   {
     [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
-    static int Main(string[] args)
+    private static int Main(string[] args)
     {
       var opts = new Options();
 
