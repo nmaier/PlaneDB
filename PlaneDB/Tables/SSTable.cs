@@ -87,7 +87,7 @@ namespace NMaier.PlaneDB
     public bool ContainsKey(ReadOnlySpan<byte> key, out bool removed)
     {
       var keyBytes = key.ToArray();
-      if (!ContainsNot(key.ToArray())) {
+      if (!ContainsNot(keyBytes)) {
         return IndexBlockContainsKey(Upper(keyBytes).Value, keyBytes, out removed);
       }
 
