@@ -93,7 +93,7 @@ namespace NMaier.PlaneDB
     {
       for (byte level = 0x00; level <= state.Manifest.GetHighestLevel(family); ++level) {
         var maxFiles = force ? level < 2 ? 1 : 8 :
-          level == 0 ? 8 : 16;
+          level == 0 ? 12 : 16;
 
         KeyValuePair<ulong, SSTable>[] mergeSequence;
         bool needsTombstones;
