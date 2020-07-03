@@ -15,10 +15,7 @@ namespace NMaier.PlaneDB
   internal sealed class SSTable : IReadOnlyTable, IDisposable
   {
     private readonly IByteArrayComparer comparer;
-    private readonly BloomFilter filter;
-    private readonly byte[] firstKey;
-    private readonly KeyValuePair<byte[], long>[] indexes;
-    private readonly byte[] lastKey;
+    private readonly Index index;
     private readonly BlockReadOnlyStream reader;
     private readonly Stream stream;
     private long refs = 1;
@@ -28,51 +25,14 @@ namespace NMaier.PlaneDB
       this.stream = stream;
       comparer = options.Comparer;
       reader = OpenReaderStream(cache, options);
-
-      reader.Seek(-sizeof(long), SeekOrigin.End);
-      var headerLen = reader.ReadInt64();
-
-      var headerBytes = new byte[headerLen];
-      var headerOffset = reader.Seek(-sizeof(long) - headerBytes.Length, SeekOrigin.End);
-      reader.ReadFullBlock(headerBytes);
-      using var header = new MemoryStream(headerBytes, false);
-
-      var blen = header.ReadInt32();
-      var binit = new byte[blen];
-      header.ReadFullBlock(binit);
-      filter = new BloomFilter(binit);
-
-      var len = header.ReadInt32();
-      var idx = new List<KeyValuePair<byte[], long>>();
-      for (var i = 0; i < len; ++i) {
-        var logicalOffset = header.ReadInt32();
-        var klen = header.ReadInt32();
-        var key = new byte[klen];
-        header.ReadFullBlock(key);
-        var absOffset = headerOffset - logicalOffset;
-        idx.Add(new KeyValuePair<byte[], long>(key, absOffset));
-      }
-
-      indexes = idx.ToArray();
-      {
-        var firstIndex = indexes.First();
-        reader.Seek(firstIndex.Value, SeekOrigin.Begin);
-        var items = reader.ReadInt32();
-        reader.ReadInt64();
-        var blengths = new byte[items * sizeof(int) * 2];
-        reader.ReadFullBlock(blengths);
-        var lengths = blengths.AsSpan();
-        var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
-        firstKey = reader.ReadFullBlock(klen);
-      }
-      lastKey = indexes[indexes.Length - 1].Key;
+      index = new Index(reader);
     }
 
     internal long DiskSize => stream.Length;
     internal long RealSize => reader.Length;
-    internal long BloomBits => filter.Size;
+    internal long BloomBits => index.Filter.Size;
 
-    internal long IndexBlockCount => indexes.Length;
+    internal long IndexBlockCount => index.Indexes.Length;
 
     public void Dispose()
     {
@@ -98,7 +58,7 @@ namespace NMaier.PlaneDB
     public IEnumerable<KeyValuePair<byte[], byte[]?>> Enumerate()
     {
       using var cursor = reader.CreateCursor();
-      foreach (var kv in indexes) {
+      foreach (var kv in index.Indexes) {
         cursor.Seek(kv.Value, SeekOrigin.Begin);
         var items = cursor.ReadInt32();
         var off = cursor.ReadInt64();
@@ -143,7 +103,7 @@ namespace NMaier.PlaneDB
     public IEnumerable<KeyValuePair<byte[], byte[]?>> EnumerateKeys()
     {
       using var cursor = reader.CreateCursor();
-      foreach (var kv in indexes) {
+      foreach (var kv in index.Indexes) {
         cursor.Seek(kv.Value, SeekOrigin.Begin);
         var items = cursor.ReadInt32();
         cursor.ReadInt64();
@@ -195,7 +155,8 @@ namespace NMaier.PlaneDB
 
     private bool ContainsNot(byte[] key)
     {
-      return comparer.Compare(key, firstKey) < 0 || comparer.Compare(key, lastKey) > 0 || !filter.Contains(key);
+      return comparer.Compare(key, index.FirstKey) < 0 || comparer.Compare(key, index.LastKey) > 0 ||
+             !index.Filter.Contains(key);
     }
 
     private bool IndexBlockContainsKey(long offset, byte[] keyBytes, out bool removed)
@@ -287,10 +248,10 @@ namespace NMaier.PlaneDB
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    KeyValuePair<byte[], long> Upper(byte[] keyBytes)
+    private KeyValuePair<byte[], long> Upper(byte[] keyBytes)
     {
-      if (indexes.Length < 8) {
-        foreach (var kv in indexes) {
+      if (index.Indexes.Length < 8) {
+        foreach (var kv in index.Indexes) {
           if (comparer.Compare(keyBytes, kv.Key) <= 0) {
             return kv;
           }
@@ -298,10 +259,10 @@ namespace NMaier.PlaneDB
       }
 
       var lo = 0;
-      var hi = indexes.Length;
+      var hi = index.Indexes.Length;
       while (hi - lo > 0) {
         var half = (hi + lo) / 2;
-        var middle = indexes[half];
+        var middle = index.Indexes[half];
         if (comparer.Compare(middle.Key, keyBytes) < 0) {
           lo = half + 1;
         }
@@ -310,7 +271,58 @@ namespace NMaier.PlaneDB
         }
       }
 
-      return indexes[lo];
+      return index.Indexes[lo];
+    }
+
+    private readonly struct Index
+    {
+      internal readonly byte[] FirstKey;
+      internal readonly byte[] LastKey;
+      internal readonly KeyValuePair<byte[], long>[] Indexes;
+      internal readonly BloomFilter Filter;
+
+      public Index(BlockReadOnlyStream stream)
+      {
+        using var reader = stream.CreateCursor();
+        reader.Seek(-sizeof(long), SeekOrigin.End);
+        var headerLen = reader.ReadInt64();
+
+        var headerBytes = new byte[headerLen];
+        var headerOffset = reader.Seek(-sizeof(long) - headerBytes.Length, SeekOrigin.End);
+        reader.ReadFullBlock(headerBytes);
+
+        using var header = new MemoryStream(headerBytes, false);
+
+        var blen = header.ReadInt32();
+        var binit = new byte[blen];
+        header.ReadFullBlock(binit);
+        Filter = new BloomFilter(binit);
+
+        var len = header.ReadInt32();
+        var idx = new List<KeyValuePair<byte[], long>>();
+        for (var i = 0; i < len; ++i) {
+          var logicalOffset = header.ReadInt32();
+          var klen = header.ReadInt32();
+          var key = new byte[klen];
+          header.ReadFullBlock(key);
+          var absOffset = headerOffset - logicalOffset;
+          idx.Add(new KeyValuePair<byte[], long>(key, absOffset));
+        }
+
+        Indexes = idx.ToArray();
+        {
+          var firstIndex = Indexes.First();
+          reader.Seek(firstIndex.Value, SeekOrigin.Begin);
+          var items = reader.ReadInt32();
+          reader.ReadInt64();
+          var blengths = new byte[items * sizeof(int) * 2];
+          reader.ReadFullBlock(blengths);
+          var lengths = blengths.AsSpan();
+          var klen = BinaryPrimitives.ReadInt32LittleEndian(lengths);
+          FirstKey = reader.ReadFullBlock(klen);
+        }
+        LastKey = Indexes[Indexes.Length - 1].Key;
+      }
     }
   }
 }
