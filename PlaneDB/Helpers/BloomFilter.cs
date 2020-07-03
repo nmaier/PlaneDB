@@ -29,7 +29,6 @@ namespace NMaier.PlaneDB
       return bytes.ComputeXXHash(697);
     }
 
-    private readonly bool full;
     private readonly BitArray hashBits;
     private readonly int numHashes;
 
@@ -50,17 +49,12 @@ namespace NMaier.PlaneDB
     {
       numHashes = init[0];
       hashBits = new BitArray(init.Skip(1).Select(i => i == 1).ToArray());
-      full = TrueBits() == hashBits.Count;
     }
 
     internal long Size => hashBits.Count;
 
     public bool Contains(ReadOnlySpan<byte> item)
     {
-      if (full) {
-        return true;
-      }
-
       var primaryHash = HashPrimary(item);
       var secondaryHash = HashSecondary(item);
       for (var i = 0; i < numHashes; i++) {
@@ -100,11 +94,6 @@ namespace NMaier.PlaneDB
     {
       var resultingHash = (primaryHash + i * secondaryHash) % hashBits.Count;
       return resultingHash < 0 ? -resultingHash : resultingHash;
-    }
-
-    private int TrueBits()
-    {
-      return hashBits.Cast<bool>().Count(bit => bit);
     }
   }
 }
