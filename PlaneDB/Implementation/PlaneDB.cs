@@ -50,6 +50,7 @@ namespace NMaier.PlaneDB
     private MemoryTable memoryTable;
     private KeyValuePair<ulong, SSTable>[] tables = Array.Empty<KeyValuePair<ulong, SSTable>>();
     private readonly byte[] family = Array.Empty<byte>();
+    private readonly BackgroundActionQueue backgroundQueue = new BackgroundActionQueue();
 
     /// <param name="location">Directory that will store the PlaneDB</param>
     /// <param name="mode">File mode to use, supported are: CreateNew, Open (existing), OpenOrCreate</param>
@@ -199,6 +200,8 @@ namespace NMaier.PlaneDB
       Flush();
       mergeRequests.CompleteAdding();
       mergeThread?.Join();
+
+      backgroundQueue.Dispose();
 
       foreach (var t in tables) {
         t.Value.Dispose();
@@ -881,10 +884,12 @@ namespace NMaier.PlaneDB
     private KeyValuePair<ulong, SSTable> OpenSSTable(ulong id)
     {
       var file = state.Manifest.FindFile(id);
-      return new KeyValuePair<ulong, SSTable>(id, new SSTable(
+      var rv = new KeyValuePair<ulong, SSTable>(id, new SSTable(
                                                 new FileStream(file.FullName, FileMode.Open, FileAccess.Read,
                                                                FileShare.Read, 1),
                                                 blockCache.Get(id), options));
+      backgroundQueue.Queue(rv.Value.Ensure);
+      return rv;
     }
 
     private void ReopenSSTables()

@@ -15,7 +15,7 @@ namespace NMaier.PlaneDB
   internal sealed class SSTable : IReadOnlyTable, IDisposable
   {
     private readonly IByteArrayComparer comparer;
-    private readonly Index index;
+    private readonly Lazy<Index> index;
     private readonly BlockReadOnlyStream reader;
     private readonly Stream stream;
     private long refs = 1;
@@ -25,14 +25,14 @@ namespace NMaier.PlaneDB
       this.stream = stream;
       comparer = options.Comparer;
       reader = OpenReaderStream(cache, options);
-      index = new Index(reader);
+      index = new Lazy<Index>(() => new Index(reader), LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     internal long DiskSize => stream.Length;
     internal long RealSize => reader.Length;
-    internal long BloomBits => index.Filter.Size;
+    internal long BloomBits => index.Value.Filter.Size;
 
-    internal long IndexBlockCount => index.Indexes.Length;
+    internal long IndexBlockCount => index.Value.Indexes.Length;
 
     public void Dispose()
     {
@@ -58,7 +58,7 @@ namespace NMaier.PlaneDB
     public IEnumerable<KeyValuePair<byte[], byte[]?>> Enumerate()
     {
       using var cursor = reader.CreateCursor();
-      foreach (var kv in index.Indexes) {
+      foreach (var kv in index.Value.Indexes) {
         cursor.Seek(kv.Value, SeekOrigin.Begin);
         var items = cursor.ReadInt32();
         var off = cursor.ReadInt64();
@@ -103,7 +103,7 @@ namespace NMaier.PlaneDB
     public IEnumerable<KeyValuePair<byte[], byte[]?>> EnumerateKeys()
     {
       using var cursor = reader.CreateCursor();
-      foreach (var kv in index.Indexes) {
+      foreach (var kv in index.Value.Indexes) {
         cursor.Seek(kv.Value, SeekOrigin.Begin);
         var items = cursor.ReadInt32();
         cursor.ReadInt64();
@@ -153,10 +153,19 @@ namespace NMaier.PlaneDB
       Interlocked.Increment(ref refs);
     }
 
+    internal void Ensure()
+    {
+      var val = index.Value;
+      if (val != index.Value) {
+        throw new InvalidOperationException();
+      }
+    }
+
     private bool ContainsNot(byte[] key)
     {
-      return comparer.Compare(key, index.FirstKey) < 0 || comparer.Compare(key, index.LastKey) > 0 ||
-             !index.Filter.Contains(key);
+      var idx = index.Value;
+      return comparer.Compare(key, idx.FirstKey) < 0 || comparer.Compare(key, idx.LastKey) > 0 ||
+             !idx.Filter.Contains(key);
     }
 
     private bool IndexBlockContainsKey(long offset, byte[] keyBytes, out bool removed)
@@ -250,8 +259,9 @@ namespace NMaier.PlaneDB
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private KeyValuePair<byte[], long> Upper(byte[] keyBytes)
     {
-      if (index.Indexes.Length < 8) {
-        foreach (var kv in index.Indexes) {
+      var idx = index.Value;
+      if (idx.Indexes.Length < 8) {
+        foreach (var kv in idx.Indexes) {
           if (comparer.Compare(keyBytes, kv.Key) <= 0) {
             return kv;
           }
@@ -259,10 +269,10 @@ namespace NMaier.PlaneDB
       }
 
       var lo = 0;
-      var hi = index.Indexes.Length;
+      var hi = idx.Indexes.Length;
       while (hi - lo > 0) {
         var half = (hi + lo) / 2;
-        var middle = index.Indexes[half];
+        var middle = idx.Indexes[half];
         if (comparer.Compare(middle.Key, keyBytes) < 0) {
           lo = half + 1;
         }
@@ -271,15 +281,15 @@ namespace NMaier.PlaneDB
         }
       }
 
-      return index.Indexes[lo];
+      return idx.Indexes[lo];
     }
 
-    private readonly struct Index
+    private sealed class Index
     {
-      internal readonly byte[] FirstKey;
-      internal readonly byte[] LastKey;
-      internal readonly KeyValuePair<byte[], long>[] Indexes;
       internal readonly BloomFilter Filter;
+      internal readonly byte[] FirstKey;
+      internal readonly KeyValuePair<byte[], long>[] Indexes;
+      internal readonly byte[] LastKey;
 
       public Index(BlockReadOnlyStream stream)
       {
