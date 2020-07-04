@@ -11,6 +11,7 @@ namespace NMaier.PlaneDB
   /// </summary>
   [PublicAPI]
   public interface IPlaneDB<TKey, TValue> : IPlaneBase, IDictionary<TKey, TValue>
+    where TKey : notnull
   {
     /// <summary>
     ///   Iterate over the keys. Unlike the <see cref="IDictionary{TKey,TValue}.Keys">Keys</see> property, this wil not create

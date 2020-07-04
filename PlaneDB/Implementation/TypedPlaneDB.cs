@@ -17,6 +17,7 @@ namespace NMaier.PlaneDB
   [SuppressMessage("ReSharper", "UseDeconstruction")]
   [SuppressMessage("ReSharper", "UseDeconstructionOnParameter")]
   public class TypedPlaneDB<TKey, TValue> : IPlaneDB<TKey, TValue>
+    where TKey : notnull
   {
     private readonly ISerializer<TKey> keySerializer;
     private readonly ISerializer<TValue> valueSerializer;

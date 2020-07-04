@@ -9,6 +9,7 @@ using System.Threading;
 namespace NMaier.PlaneDB
 {
   internal sealed class LeastUsedDictionary<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>
+    where TKey : notnull
     where TValue : class
   {
     sealed class Node
@@ -85,8 +86,9 @@ namespace NMaier.PlaneDB
               var rem = items.ToArray().OrderBy(i => i.Value.Count).ThenBy(i => random.Next()).Select(i => i.Key)
                 .Take(toDrop);
               foreach (var k in rem) {
-                items.TryRemove(k, out var n);
-                secondary.TryAdd(k, new WeakReference<TValue>(n.Obj));
+                if (items.TryRemove(k, out var n) && n?.Obj != null) {
+                  secondary.TryAdd(k, new WeakReference<TValue>(n.Obj));
+                }
               }
 
               foreach (var n in items.Values) {
