@@ -597,6 +597,127 @@ namespace NMaier.PlaneDB
     }
 
     /// <inheritdoc />
+    public IEnumerable<KeyValuePair<byte[], byte[]>> GetOrAddRange(IEnumerable<KeyValuePair<byte[], byte[]>> keysAndDefaults)
+    {
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
+      try {
+        foreach (var key in keysAndDefaults) {
+          if (TryGetValueUnlocked(key.Key, out var existingValue)) {
+            yield return new KeyValuePair<byte[], byte[]>(key.Key, existingValue);
+            continue;
+          }
+
+          readWriteLock.EnterWriteLock();
+          try {
+            state.Journal.Put(key.Key, key.Value);
+            memoryTable.Put(key.Key, key.Value);
+            MaybeFlushMemoryTable();
+          }
+          finally {
+            readWriteLock.ExitWriteLock();
+          }
+
+          yield return key;
+        }
+      }
+      finally {
+        readWriteLock.ExitUpgradeableReadLock();
+      }
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<KeyValuePair<byte[], byte[]>> GetOrAddRange(IEnumerable<byte[]> keys, byte[] value)
+    {
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
+      try {
+        foreach (var key in keys) {
+          if (TryGetValueUnlocked(key, out var existingValue)) {
+            yield return new KeyValuePair<byte[], byte[]>(key, existingValue);
+            continue;
+          }
+
+          readWriteLock.EnterWriteLock();
+          try {
+            state.Journal.Put(key, value);
+            memoryTable.Put(key, value);
+            MaybeFlushMemoryTable();
+          }
+          finally {
+            readWriteLock.ExitWriteLock();
+          }
+
+          yield return new KeyValuePair<byte[], byte[]>(key, value);
+        }
+      }
+      finally {
+        readWriteLock.ExitUpgradeableReadLock();
+      }
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<KeyValuePair<byte[], byte[]>> GetOrAddRange(IEnumerable<byte[]> keys, Func<byte[], byte[]> valueFactory)
+    {
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
+      try {
+        foreach (var key in keys) {
+          if (TryGetValueUnlocked(key, out var value)) {
+            yield return new KeyValuePair<byte[], byte[]>(key, value);
+            continue;
+          }
+
+          value = valueFactory(key);
+          readWriteLock.EnterWriteLock();
+          try {
+            state.Journal.Put(key, value);
+            memoryTable.Put(key, value);
+            MaybeFlushMemoryTable();
+          }
+          finally {
+            readWriteLock.ExitWriteLock();
+          }
+
+          yield return new KeyValuePair<byte[], byte[]>(key, value);
+        }
+      }
+      finally {
+        readWriteLock.ExitUpgradeableReadLock();
+      }
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<KeyValuePair<byte[], byte[]>> GetOrAddRange<TArg>(IEnumerable<byte[]> keys, Func<byte[], TArg, byte[]> valueFactory, TArg factoryArgument)
+    {
+      var readWriteLock = state.ReadWriteLock;
+      readWriteLock.EnterUpgradeableReadLock();
+      try {
+        foreach (var key in keys) {
+          if (TryGetValueUnlocked(key, out var value)) {
+            yield return new KeyValuePair<byte[], byte[]>(key, value);
+            continue;
+          }
+
+          value = valueFactory(key, factoryArgument);
+          try {
+            state.Journal.Put(key, value);
+            memoryTable.Put(key, value);
+            MaybeFlushMemoryTable();
+          }
+          finally {
+            readWriteLock.ExitWriteLock();
+          }
+
+          yield return new KeyValuePair<byte[], byte[]>(key, value);
+        }
+      }
+      finally {
+        readWriteLock.ExitUpgradeableReadLock();
+      }
+    }
+
+    /// <inheritdoc />
     public IEnumerable<byte[]> KeysIterator => GetInternalEnumerable(false).Select(i => i.Key);
 
     /// <inheritdoc />

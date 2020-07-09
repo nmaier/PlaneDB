@@ -255,6 +255,34 @@ namespace NMaier.PlaneDB.Tests
       }
     }
 
+    [TestMethod]
+    public void TestGetOrAddRange()
+    {
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.CreateNew, planeDBOptions)) {
+        foreach (var keyValuePair in db.GetOrAddRange(Enumerable.Range(0, COUNT).Where(i => (i % 2) == 0).Select(
+                                             i => new KeyValuePair<byte[], byte[]>(Encoding.UTF8.GetBytes(i.ToString()),
+                                               Encoding.UTF8.GetBytes(i.ToString() + i))))) {
+          var key = Encoding.UTF8.GetString(keyValuePair.Key);
+          var val = Encoding.UTF8.GetString(keyValuePair.Value);
+          Assert.AreEqual(key + key, val);
+        }
+      }
+ 
+      using (var db = new PlaneDB(new DirectoryInfo("testdb"), FileMode.OpenOrCreate, planeDBOptions)) {
+        foreach (var keyValuePair in db.GetOrAddRange(Enumerable.Range(0, COUNT).Select(i => Encoding.UTF8.GetBytes(i.ToString())), bytes => Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(bytes) + "i"))) {
+          var key = Encoding.UTF8.GetString(keyValuePair.Key);
+          var i = int.Parse(key);
+          var val = Encoding.UTF8.GetString(keyValuePair.Value);
+          if ((i % 2) == 0) {
+            Assert.AreEqual(key + key, val);
+          }
+          else {
+            Assert.AreEqual(key + "i", val);
+          }
+        }
+      }
+    }
+
 
     [TestMethod]
     [DataRow(2)]

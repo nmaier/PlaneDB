@@ -137,6 +137,70 @@ namespace NMaier.PlaneDB
     TValue GetOrAdd<TArg>(TKey key, Func<TKey, TArg, TValue> valueFactory, TArg factoryArgument);
 
     /// <summary>
+    ///   Add a range of elements to the <see cref="IPlaneDB{TKey,TValue}" /> if the key does not already exist. Otherwise
+    ///   returns the existing value.
+    /// </summary>
+    /// <param name="keysAndDefaults">
+    ///   The keys of the elements to get, and a default value to add if the key does not exist
+    ///   yet.
+    /// </param>
+    /// <returns>
+    ///   The key-value pairs for each key. This will be either the existing value for the key if the
+    ///   key is already in the dictionary, or the new value for the key as returned by valueFactory
+    ///   if the key was not in the dictionary.
+    /// </returns>
+    IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange(IEnumerable<KeyValuePair<TKey, TValue>> keysAndDefaults);
+
+    /// <summary>
+    ///   Add a range of elements to the <see cref="IPlaneDB{TKey,TValue}" /> if the key does not already exist. Otherwise
+    ///   returns the existing value.
+    /// </summary>
+    /// <param name="keys">The keys of the elements to add.</param>
+    /// <param name="value">The value for the keys</param>
+    /// <returns>
+    ///   The key-value pairs for each key. This will be either the existing value for the key if the
+    ///   key is already in the dictionary, or the new value for the key as returned by valueFactory
+    ///   if the key was not in the dictionary.
+    /// </returns>
+    IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange(IEnumerable<TKey> keys, TValue value);
+
+    /// <summary>
+    ///   Add a range of elements to the <see cref="IPlaneDB{TKey,TValue}" /> if the key does not already exist. Otherwise
+    ///   returns the existing value.
+    /// </summary>
+    /// <param name="keys">The keys of the elements to add.</param>
+    /// <param name="valueFactory">
+    ///   The function used to generate a value for the corresponding keys. This function may be
+    ///   called more than once.
+    /// </param>
+    /// <returns>
+    ///   The key-value pairs for each key. This will be either the existing value for the key if the
+    ///   key is already in the dictionary, or the new value for the key as returned by valueFactory
+    ///   if the key was not in the dictionary.
+    /// </returns>
+    IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange(IEnumerable<TKey> keys, Func<TKey, TValue> valueFactory);
+
+    /// <summary>
+    ///   Add a range of elements to the <see cref="IPlaneDB{TKey,TValue}" /> if the key does not already exist. Otherwise
+    ///   returns the existing value.
+    /// </summary>
+    /// <param name="keys">The keys of the elements to add.</param>
+    /// <param name="valueFactory">
+    ///   The function used to generate a value for the corresponding keys. This function may be
+    ///   called more than once.
+    /// </param>
+    /// <param name="factoryArgument">
+    ///   An argument to pass into <paramref name="valueFactory" />.
+    /// </param>
+    /// <returns>
+    ///   The key-value pairs for each key. This will be either the existing value for the key if the
+    ///   key is already in the dictionary, or the new value for the key as returned by valueFactory
+    ///   if the key was not in the dictionary.
+    /// </returns>
+    IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange<TArg>(IEnumerable<TKey> keys,
+      Func<TKey, TArg, TValue> valueFactory, TArg factoryArgument);
+
+    /// <summary>
     ///   Raised when flushing memory tables
     /// </summary>
     event EventHandler<IPlaneDB<TKey, TValue>>? OnFlushMemoryTable;

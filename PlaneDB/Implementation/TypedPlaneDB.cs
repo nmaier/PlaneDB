@@ -301,6 +301,46 @@ namespace NMaier.PlaneDB
     }
 
     /// <inheritdoc />
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange(IEnumerable<KeyValuePair<TKey, TValue>> keysAndDefaults)
+    {
+      return wrapped.GetOrAddRange(keysAndDefaults.Select(
+                                     i => new KeyValuePair<byte[], byte[]>(keySerializer.Serialize(i.Key),
+                                                                           valueSerializer.Serialize(i.Value))))
+        .Select(i => new KeyValuePair<TKey, TValue>(keySerializer.Deserialize(i.Key), valueSerializer.Deserialize(i.Value)));
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange(IEnumerable<TKey> keys, TValue value)
+    {
+      return wrapped.GetOrAddRange(keys.Select(i => keySerializer.Serialize(i)), valueSerializer.Serialize(value))
+        .Select(i => new KeyValuePair<TKey, TValue>(keySerializer.Deserialize(i.Key), valueSerializer.Deserialize(i.Value)));
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange(IEnumerable<TKey> keys, Func<TKey, TValue> valueFactory)
+    {
+      byte[] Factory(byte[] key)
+      {
+        return valueSerializer.Serialize(valueFactory(keySerializer.Deserialize(key)));
+      }
+
+      return wrapped.GetOrAddRange(keys.Select(i => keySerializer.Serialize(i)), Factory)
+        .Select(i => new KeyValuePair<TKey, TValue>(keySerializer.Deserialize(i.Key), valueSerializer.Deserialize(i.Value)));
+    }
+
+    /// <inheritdoc />
+    public IEnumerable<KeyValuePair<TKey, TValue>> GetOrAddRange<TArg>(IEnumerable<TKey> keys, Func<TKey, TArg, TValue> valueFactory, TArg factoryArgument)
+    {
+      byte[] Factory(byte[] key, TArg arg)
+      {
+        return valueSerializer.Serialize(valueFactory(keySerializer.Deserialize(key), arg));
+      }
+
+      return wrapped.GetOrAddRange(keys.Select(i => keySerializer.Serialize(i)), Factory, factoryArgument)
+        .Select(i => new KeyValuePair<TKey, TValue>(keySerializer.Deserialize(i.Key), valueSerializer.Deserialize(i.Value)));
+    }
+
+    /// <inheritdoc />
     public IEnumerable<TKey> KeysIterator => wrapped.KeysIterator.Select(k => keySerializer.Deserialize(k));
 
     // XXX
