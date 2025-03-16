@@ -1,0 +1,27 @@
+name: Upload dotnet package
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8
+          source-url: https://nuget.pkg.github.com/nmaier/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      - run: dotnet build --configuration Release
+      - name: Create the package
+        run: dotnet pack --configuration Release -o Packages
+      - name: Publish the package to GPR
+        run: |
+          cd Packages
+          dotnet nuget push *.symbols.nupkg --skip-duplicate
