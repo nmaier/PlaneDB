@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    permissions:
+      packages: read
+      contents: read
     env:
       DOTNET_NOLOGO: true
     strategy:
@@ -23,6 +26,9 @@ jobs:
         dotnet-version: |
           6
           8
+        source-url: https://nuget.pkg.github.com/nmaier/index.json
+      env:
+        NUGET_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}
     - name: Install dependencies
       run: dotnet restore
     - name: Build
