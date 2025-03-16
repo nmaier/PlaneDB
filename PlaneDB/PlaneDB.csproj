@@ -18,6 +18,6 @@ Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="NMaier.BlockStream" Version="3.0.3" />
+    <PackageReference Include="NMaier.BlockStream" Version="3.0.8" />
   </ItemGroup>
 </Project>
