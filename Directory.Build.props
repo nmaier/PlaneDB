@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Project>
+	<PropertyGroup>
+		<TargetFrameworks>net6;net8</TargetFrameworks>
+		<LangVersion>latest</LangVersion>
+		<Deterministic>true</Deterministic>
+		<Nullable>enable</Nullable>
+		<NeutralLanguage />
+		<DisableImplicitNamespaceImports>true</DisableImplicitNamespaceImports>
+
+		<Authors>Nils Maier</Authors>
+		<Company />
+		<Product>NMaier.PlaneDB</Product>
+		<MinVerTagPrefix>v</MinVerTagPrefix>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/nmaier/PlaneDB</PackageProjectUrl>
+		<PackageTags>db, database, key-value, kv-store, embedded, database, embedded database</PackageTags>
+
+		<RepositoryUrl>https://github.com/nmaier/PlaneDB</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+
+		<DebugSymbols>true</DebugSymbols>
+		<DebugType>embedded</DebugType>
+
+		<PackageOutputPath>../Packages</PackageOutputPath>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="JetBrains.Annotations" Version="2024.3.0">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.25">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="MinVer" Version="6.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
+</Project>

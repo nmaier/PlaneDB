@@ -12,6 +12,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D18C69F8-5F34-4DBB-B1C4-AC56A904A681}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		Directory.Build.props = Directory.Build.props
 		icon.png = icon.png
 		LICENSE.txt = LICENSE.txt
 		README.md = README.md
@@ -19,6 +20,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PlaneTool", "PlaneTool\PlaneTool.csproj", "{EB223A9F-3482-4623-9BED-6D74F74DE436}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PlaneDB.MessagePack", "PlaneDB.MessagePack\PlaneDB.MessagePack.csproj", "{A823D55F-104B-4BE4-AD4F-B5AA8DBA01F8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PlaneDB.Json", "PlaneDB.Json\PlaneDB.Json.csproj", "{49BB946B-D437-4342-BD56-19729CFACBF0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PlaneDB.Remote", "PlaneDB.Remote\PlaneDB.Remote.csproj", "{2334A5A6-CC3A-45C5-BD55-85ADF1D80902}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PlaneDB.MemoryDict", "PlaneDB.MemoryDict\PlaneDB.MemoryDict.csproj", "{7CB6FDAD-00D8-4976-A830-FBB244B290FB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PlaneDB.RedisServer", "PlaneDB.RedisServer\PlaneDB.RedisServer.csproj", "{A99268CF-D61C-42E4-B765-88D70DCBADD9}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -42,6 +53,26 @@ Global
 		{EB223A9F-3482-4623-9BED-6D74F74DE436}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EB223A9F-3482-4623-9BED-6D74F74DE436}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EB223A9F-3482-4623-9BED-6D74F74DE436}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A823D55F-104B-4BE4-AD4F-B5AA8DBA01F8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A823D55F-104B-4BE4-AD4F-B5AA8DBA01F8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A823D55F-104B-4BE4-AD4F-B5AA8DBA01F8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A823D55F-104B-4BE4-AD4F-B5AA8DBA01F8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49BB946B-D437-4342-BD56-19729CFACBF0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49BB946B-D437-4342-BD56-19729CFACBF0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49BB946B-D437-4342-BD56-19729CFACBF0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49BB946B-D437-4342-BD56-19729CFACBF0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2334A5A6-CC3A-45C5-BD55-85ADF1D80902}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2334A5A6-CC3A-45C5-BD55-85ADF1D80902}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2334A5A6-CC3A-45C5-BD55-85ADF1D80902}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2334A5A6-CC3A-45C5-BD55-85ADF1D80902}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7CB6FDAD-00D8-4976-A830-FBB244B290FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7CB6FDAD-00D8-4976-A830-FBB244B290FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7CB6FDAD-00D8-4976-A830-FBB244B290FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7CB6FDAD-00D8-4976-A830-FBB244B290FB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A99268CF-D61C-42E4-B765-88D70DCBADD9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A99268CF-D61C-42E4-B765-88D70DCBADD9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A99268CF-D61C-42E4-B765-88D70DCBADD9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A99268CF-D61C-42E4-B765-88D70DCBADD9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

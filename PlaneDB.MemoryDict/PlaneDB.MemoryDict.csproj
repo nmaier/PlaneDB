@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>NMaier.PlaneDB.MemoryDict</AssemblyName>
+    <RootNamespace>NMaier.PlaneDB</RootNamespace>
+
+    <PackageId>NMaier.PlaneDB.MemoryDict</PackageId>
+    <Product>NMaier.PlaneDB.MemoryDict</Product>
+    <Description>A simple in-memory only dictionary compatible with IPlaneDict</Description>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PlaneDB\PlaneDB.csproj" />
+  </ItemGroup>
+</Project>

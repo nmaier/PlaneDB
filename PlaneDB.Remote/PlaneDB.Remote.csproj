@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>NMaier.PlaneDB.Remote</AssemblyName>
+    <RootNamespace>NMaier.PlaneDB</RootNamespace>
+
+    <PackageId>NMaier.PlaneDB.Remote</PackageId>
+    <Product>NMaier.PlaneDB.Remote</Product>
+    <Description>Simple PlaneDB Server/Client architecture</Description>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\PlaneDB\PlaneDB.csproj" />
+  </ItemGroup>
+</Project>

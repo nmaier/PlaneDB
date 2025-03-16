@@ -3,26 +3,13 @@
   <PropertyGroup>
     <AssemblyName>NMaier.PlaneDB</AssemblyName>
     <RootNamespace>NMaier.PlaneDB</RootNamespace>
-    <TargetFrameworks>netstandard2.1;net48</TargetFrameworks>
 
-    <LangVersion>8</LangVersion>
-    <Deterministic>True</Deterministic>
-    <Nullable>enable</Nullable>
-    
     <PackageId>NMaier.PlaneDB</PackageId>
-    <Authors>Nils Maier</Authors>
-    <Company />
     <Product>NMaier.PlaneDB</Product>
-    <Version>0.10.1</Version>
     <Description>Pure .NET Key-Value and Set databases.
 Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>db, database, key-value, kv-store, embedded, database, embedded database</PackageTags>
 
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-    <IncludeSymbols>true</IncludeSymbols>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -31,11 +18,6 @@ Inspired by LevelDB and SSTables and Log Structured Merge Trees.</Description>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="JetBrains.Annotations" Version="2020.1.0">
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="NMaier.BlockStream" Version="1.6.0" />
-    <PackageReference Include="NMaier.Serializers" Version="1.2.0" />
+    <PackageReference Include="NMaier.BlockStream" Version="3.0.3" />
   </ItemGroup>
-
 </Project>

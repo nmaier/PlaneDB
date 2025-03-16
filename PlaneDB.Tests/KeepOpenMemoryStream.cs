@@ -1,15 +1,19 @@
-﻿using System.IO;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.IO;
 
-namespace NMaier.PlaneDB.Tests
+namespace NMaier.PlaneDB.Tests;
+
+internal sealed class KeepOpenMemoryStream : MemoryStream
 {
-  internal sealed class KeepOpenMemoryStream : MemoryStream
+  public override void Close()
   {
-    public override void Close()
-    {
-    }
+  }
 
-    protected override void Dispose(bool disposing)
-    {
-    }
+  [SuppressMessage(
+    "Usage",
+    "CA2215:Dispose methods should call base class dispose",
+    Justification = "As intended")]
+  protected override void Dispose(bool disposing)
+  {
   }
 }

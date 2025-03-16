@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>NMaier.PlaneDB.RedisServer</AssemblyName>
+    <RootNamespace>NMaier.PlaneDB</RootNamespace>
+
+    <PackageId>NMaier.PlaneDB.RedisServer</PackageId>
+    <Product>NMaier.PlaneDB.RedisServer</Product>
+    <Description>Serve PlaneDB over the redis protocol</Description>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../icon.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\PlaneDB\PlaneDB.csproj" />
+    <ProjectReference Include="..\PlaneDB.Remote\PlaneDB.Remote.csproj" />
+  </ItemGroup>
+</Project>

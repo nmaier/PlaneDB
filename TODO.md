@@ -6,7 +6,7 @@
   - Make sure to throw proper exceptions
 - Range Iterator API
 - Optimize (or warn against) use of .Keys/.Values, and maybe provide alternate IterKeys/IterValues that is a plain enumerable without count
-- Test sequence matches TryGet/ContainsKey
-- Test odd number sequence to see if FindShortest works (with custom comparers)
 - Async merge
 - Value-Stream interface
+- Make SSTBuilder write non-interned values immidiately
+- Better level size curves

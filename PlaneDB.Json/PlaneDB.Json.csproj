@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<AssemblyName>NMaier.PlaneDB.Json</AssemblyName>
+		<RootNamespace>NMaier.PlaneDB</RootNamespace>
+
+		<PackageId>NMaier.PlaneDB.Json</PackageId>
+		<Product>NMaier.PlaneDB.Json</Product>
+		<Description>A Json serializer for PlaneDB</Description>
+		<PackageIcon>icon.png</PackageIcon>
+
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="../icon.png" Pack="true" PackagePath="" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="System.Text.Json" Version="9.0.3" Condition="'$(TargetFramework)' != 'net6'" />
+		<PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == 'net6'" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\PlaneDB\PlaneDB.csproj" />
+	</ItemGroup>
+</Project>
