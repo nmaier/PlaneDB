@@ -2121,6 +2121,87 @@ public sealed partial class PlaneDBTests
   [DataRow(PlaneKeyCacheMode.AutoKeyCaching)]
   [DataRow(PlaneKeyCacheMode.ForceKeyCaching)]
   [DataRow(PlaneKeyCacheMode.NoKeyCaching)]
+  [SuppressMessage("ReSharper", "CollectionNeverUpdated.Local")]
+  public void TestTypedSmall(PlaneKeyCacheMode keyCacheMode)
+  {
+    var dbOptions = planeOptions.WithKeyCacheMode(keyCacheMode);
+
+    using (var db = new TypedPlaneDB<int, int>(
+             new PlaneInt32Serializer(),
+             new PlaneInt32Serializer(),
+             new DirectoryInfo(testDB),
+             dbOptions.WithOpenMode(PlaneOpenMode.CreateReadWrite))) {
+      for (var i = 0; i < COUNT; ++i) {
+        db[i] = i;
+      }
+    }
+
+    using (var db = new TypedPlaneDB<int, int>(
+             new PlaneInt32Serializer(),
+             new PlaneInt32Serializer(),
+             new DirectoryInfo(testDB),
+             dbOptions)) {
+      for (var i = 0; i < COUNT; ++i) {
+        Assert.AreEqual(i, db[i]);
+      }
+
+      Assert.IsTrue(db.TryRemove(0, out var removed));
+      Assert.AreEqual(0, removed);
+    }
+
+    using (var db = new TypedPlaneDB<int, int>(
+             new PlaneInt32Serializer(),
+             new PlaneInt32Serializer(),
+             new DirectoryInfo(testDB),
+             dbOptions)) {
+      for (var i = 1; i < COUNT; ++i) {
+        Assert.AreEqual(i, db[i]);
+      }
+    }
+
+    using (var db = new TypedPlaneDB<int, int>(
+             new PlaneInt32Serializer(),
+             new PlaneInt32Serializer(),
+             new DirectoryInfo(testDB),
+             dbOptions)) {
+      for (var i = 0; i < COUNT; ++i) {
+        if (i == 0) {
+          Assert.IsFalse(db.TryGetValue(i, out _));
+        }
+        else {
+          Assert.IsTrue(db.TryGetValue(i, out var v));
+          Assert.AreEqual(i, v);
+        }
+      }
+    }
+
+    using (var db = new TypedPlaneDB<int, int>(
+             new PlaneInt32Serializer(),
+             new PlaneInt32Serializer(),
+             new DirectoryInfo(testDB),
+             dbOptions)) {
+      for (var i = 1; i < COUNT; ++i) {
+        if (i % 2 == 0) {
+          db.Remove(i);
+        }
+      }
+    }
+
+    using (var db = new TypedPlaneDB<int, int>(
+             new PlaneInt32Serializer(),
+             new PlaneInt32Serializer(),
+             new DirectoryInfo(testDB),
+             dbOptions)) {
+      for (var i = 1; i < COUNT; ++i) {
+        Assert.AreEqual(i % 2 != 0, db.TryGetValue(i, out _));
+      }
+    }
+  }
+
+  [TestMethod]
+  [DataRow(PlaneKeyCacheMode.AutoKeyCaching)]
+  [DataRow(PlaneKeyCacheMode.ForceKeyCaching)]
+  [DataRow(PlaneKeyCacheMode.NoKeyCaching)]
   public void TestValueSizes(PlaneKeyCacheMode keyCacheMode)
   {
     var di = new DirectoryInfo(testDB);

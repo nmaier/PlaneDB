@@ -59,6 +59,10 @@ internal sealed class SSTableBuilder : IWritableTable, IDisposable
           continue;
         }
 
+        if (bytes == null || length <= 0) {
+          continue;
+        }
+
         writer.Write(bytes);
       }
     }
