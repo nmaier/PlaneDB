@@ -24,4 +24,4 @@ jobs:
       - name: Publish the package to GPR
         run: |
           cd Packages
-          dotnet nuget push *.symbols.nupkg --skip-duplicate
+          dotnet nuget push *.nupkg --skip-duplicate
