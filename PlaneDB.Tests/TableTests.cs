@@ -60,7 +60,10 @@ public sealed class TableTests
     }
 
     using (var builder = new SSTableBuilder(ms, salt, new PlaneOptions())) {
-      Journal.ReplayOnto(js, new byte[Constants.SALT_BYTES], new PlaneOptions(), builder);
+      var memoryTable = new MemoryTable(new PlaneOptions(), 0);
+      Journal.ReplayOnto(js, new byte[Constants.SALT_BYTES], new PlaneOptions(), memoryTable);
+      Assert.IsFalse(memoryTable.IsEmpty);
+      memoryTable.CopyTo(builder);
     }
 
     using var table = func(ms, specificCache, new PlaneOptions());
@@ -100,20 +103,22 @@ public sealed class TableTests
 
     using var ms = new KeepOpenMemoryStream();
     using (var builder = new SSTableBuilder(ms, salt, new PlaneOptions())) {
+      var memoryTable = new MemoryTable(new PlaneOptions(), 0);
       for (var i = 0; i < COUNT; ++i) {
         var v = i.ToString();
         if (i % 16 != 0) {
-          builder.Put(v, v + v + v);
+          memoryTable.Put(v, v + v + v);
         }
 
         if (i % 10 == 0) {
-          builder.Put("o" + v, v + v + v);
+          memoryTable.Put("o" + v, v + v + v);
         }
 
         if (i % 20 == 0) {
-          builder.Remove("o" + v);
+          memoryTable.Remove("o" + v);
         }
       }
+      memoryTable.CopyTo(builder);
     }
 
     specificCache.Invalidate(0);
@@ -745,5 +750,16 @@ public sealed class TableTests
   {
     TestSSTableAndBuilderInternal(CreateNonCached);
     TestSSTableAndBuilderInternal(CreateCached);
+  }
+
+  [TestMethod]
+  public void TestDuplicates()
+  {
+    var salt = new byte[Constants.SALT_BYTES];
+    using var ms = new MemoryStream();
+    using var builder = new SSTableBuilder(ms, salt, new PlaneOptions());
+    builder.Put("a"u8, "1"u8);
+    Assert.ThrowsExactly<ArgumentException>(() => builder.Put("a"u8, "2"u8));
+    Assert.ThrowsExactly<ArgumentException>(() => builder.Remove("a"u8));
   }
 }

@@ -234,30 +234,38 @@ internal sealed class PlaneDBState : IPlaneDBState
       return;
     }
 
-    var newId = inputManifest.AllocateIdentifier();
-    var sst = inputManifest.FindFile(newId);
-
     try {
-      using var builder = new SSTableBuilder(
-        new FileStream(
-          sst.FullName,
-          FileMode.CreateNew,
-          FileAccess.Write,
-          FileShare.None,
-          1),
-        Salt,
-        options);
-      Journal.ReplayOnto(jbs, inputManifest.Salt, options, builder);
-      inputManifest.AddToLevel([], 0x00, newId);
-    }
-    catch (PlaneDBBrokenJournalException) {
+      var memoryTable = new MemoryTable(options, 0);
+      Journal.ReplayOnto(jbs, inputManifest.Salt, options, memoryTable);
+      if (memoryTable.IsEmpty) {
+        return;
+      }
+
+      var newId = inputManifest.AllocateIdentifier();
+      var sst = inputManifest.FindFile(newId);
       try {
-        sst.Delete();
+        using var builder = new SSTableBuilder(
+          new FileStream(
+            sst.FullName,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            1),
+          Salt,
+          options);
+        memoryTable.CopyTo(builder);
+        inputManifest.AddToLevel([], 0x00, newId);
       }
       catch {
-        // ignored
+        try {
+          sst.Delete();
+        }
+        catch {
+          // ignored
+        }
       }
-
+    }
+    catch (PlaneDBBrokenJournalException) {
       if (!options.AllowSkippingOfBrokenJournal) {
         throw;
       }

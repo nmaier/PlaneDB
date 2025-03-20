@@ -167,16 +167,16 @@ internal sealed class SSTableBuilder : IWritableTable, IDisposable
     var valueLength = value.Length;
     switch (valueLength) {
       case 0:
-        dictionary[key.ToArray()] = new ValueEntry(0, null);
+        dictionary.Add(key.ToArray(), new ValueEntry(0, null));
 
         return;
       case <= Constants.INLINED_SIZE:
-        dictionary[key.ToArray()] = new ValueEntry(valueLength, value.ToArray());
+        dictionary.Add(key.ToArray(), new ValueEntry(valueLength, value.ToArray()));
 
         return;
       default:
         writer.Write(value);
-        dictionary[key.ToArray()] = new ValueEntry(valueLength, null);
+        dictionary.Add(key.ToArray(), new ValueEntry(valueLength, null));
 
         break;
     }
@@ -184,7 +184,7 @@ internal sealed class SSTableBuilder : IWritableTable, IDisposable
 
   public void Remove(ReadOnlySpan<byte> key)
   {
-    dictionary[key.ToArray()] = new ValueEntry(Constants.TOMBSTONE, null);
+    dictionary.Add(key.ToArray(), new ValueEntry(Constants.TOMBSTONE, null));
   }
 
   private sealed record IndexEntry(byte[] FirstKey, byte[] LastKey, long BlockOffset);
